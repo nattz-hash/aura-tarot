@@ -1503,6 +1503,8 @@ const SPREADS = {
 };
 
 const STORAGE_KEY = 'lune_journal_v1';
+const LIBRARY_FILTER_KEY = 'lune_library_filter_v1';
+const LIBRARY_FILTERS = ['all', 'major', 'wands', 'cups', 'swords', 'pentacles'];
 const FAN_SIZE = 9;
 
 function moonPhaseLabel(date) {
@@ -1659,9 +1661,14 @@ class LuneApp {
     this.libraryFilter = 'all';
     this.libraryQuery = '';
     this.lastFocus = null;
+    this.sheetMode = null;
+    this.sheetList = [];
+    this.sheetIndex = 0;
+    this.sheetGesture = null;
 
     this.cacheDom();
     this.loadJournal();
+    this.loadLibraryFilter();
     this.bindEvents();
     this.initStarfield();
     this.renderMoon();
@@ -1701,7 +1708,16 @@ class LuneApp {
       libraryFilters: document.getElementById('library-filters'),
       libraryGrid: document.getElementById('library-grid'),
       libraryEmpty: document.getElementById('library-empty'),
-      libraryCount: document.getElementById('library-count')
+      libraryEmptyTitle: document.getElementById('library-empty-title'),
+      libraryEmptyCopy: document.getElementById('library-empty-copy'),
+      libraryCount: document.getElementById('library-count'),
+      libraryClear: document.getElementById('library-clear'),
+      sheetPanel: document.getElementById('card-sheet-panel'),
+      sheetNav: document.getElementById('sheet-nav'),
+      sheetIndex: document.getElementById('sheet-index'),
+      sheetPrev: document.getElementById('sheet-prev'),
+      sheetNext: document.getElementById('sheet-next'),
+      sheetBody: document.getElementById('sheet-body')
     };
   }
 
@@ -1712,32 +1728,31 @@ class LuneApp {
       this.showScreen('journal');
     });
     document.querySelectorAll('.js-open-library').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.renderLibrary();
-        this.showScreen('library');
-      });
+      btn.addEventListener('click', () => this.openLibrary());
     });
     this.els.librarySearch.addEventListener('input', () => {
       this.libraryQuery = this.els.librarySearch.value;
       this.renderLibrary();
     });
+    this.els.libraryClear.addEventListener('click', () => this.clearLibrarySearch(true));
+    document.getElementById('library-empty-clear').addEventListener('click', () => this.clearLibrarySearch(true));
     this.els.libraryFilters.addEventListener('click', (e) => {
       const chip = e.target.closest('[data-filter]');
       if (!chip) return;
-      this.libraryFilter = chip.dataset.filter;
-      this.els.libraryFilters.querySelectorAll('[data-filter]').forEach((el) => {
-        const on = el === chip;
-        el.classList.toggle('is-selected', on);
-        el.setAttribute('aria-pressed', on ? 'true' : 'false');
-      });
-      this.renderLibrary();
+      this.setLibraryFilter(chip.dataset.filter);
     });
+    this.els.sheetPrev.addEventListener('click', () => this.stepLibraryCard(-1));
+    this.els.sheetNext.addEventListener('click', () => this.stepLibraryCard(1));
+    this.bindSheetGestures();
     this.els.libraryGrid.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-card-id]');
       if (!btn) return;
       const card = TAROT_CARDS.find(function (c) { return c.id === btn.dataset.cardId; });
       if (card) this.openLibraryCard(card);
     });
+    this.els.libraryGrid.addEventListener('load', (e) => {
+      if (e.target && e.target.tagName === 'IMG') e.target.classList.add('is-loaded');
+    }, true);
     document.getElementById('btn-to-shuffle').addEventListener('click', () => {
       this.question = this.els.question.value.trim();
       this.resetShuffle();
@@ -1784,6 +1799,16 @@ class LuneApp {
       if (e.key === 'Escape') {
         this.closeCardSheet();
         this.closeNoteSheet();
+        return;
+      }
+      if (this.sheetMode === 'library' && !this.els.cardSheet.hasAttribute('hidden')) {
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          this.stepLibraryCard(1);
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          this.stepLibraryCard(-1);
+        }
       }
     });
   }
@@ -1800,7 +1825,8 @@ class LuneApp {
       if (active) el.removeAttribute('hidden');
       else el.setAttribute('hidden', '');
     });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
   }
 
   selectSpread(id) {
@@ -2012,12 +2038,32 @@ class LuneApp {
   }
 
   openLibraryCard(card) {
-    this.showCardSheet(card, { mode: 'library' });
+    const list = this.filteredLibraryCards();
+    let index = list.findIndex(function (item) { return item.id === card.id; });
+    if (index < 0) index = 0;
+    this.sheetList = list;
+    this.sheetIndex = index;
+    this.showCardSheet(list[index] || card, { mode: 'library' });
+  }
+
+  stepLibraryCard(delta) {
+    if (this.sheetMode !== 'library' || !this.sheetList.length) return;
+    const next = this.sheetIndex + delta;
+    if (next < 0 || next >= this.sheetList.length) return;
+    const focused = document.activeElement;
+    this.sheetIndex = next;
+    this.showCardSheet(this.sheetList[next], {
+      mode: 'library',
+      slide: delta > 0 ? 'next' : 'prev'
+    });
+    if (focused === this.els.sheetNext && this.els.sheetNext.disabled) this.els.sheetPrev.focus();
+    if (focused === this.els.sheetPrev && this.els.sheetPrev.disabled) this.els.sheetNext.focus();
   }
 
   showCardSheet(card, opts) {
     opts = opts || {};
     const reversed = !!opts.isReversed;
+    const wasOpen = !this.els.cardSheet.hasAttribute('hidden');
     const art = document.getElementById('sheet-art');
     art.innerHTML = cardImageHtml(card, 'sheet-card' + (reversed ? ' is-reversed' : ''), false);
     document.getElementById('sheet-position').textContent = opts.position || groupLabel(card);
@@ -2040,18 +2086,173 @@ class LuneApp {
     }
     document.getElementById('sheet-description').textContent = card.description;
     document.getElementById('sheet-symbolism').textContent = card.symbolism;
+    this.sheetMode = opts.mode || 'reading';
+    this.updateSheetNav();
+    const panel = this.els.sheetPanel;
+    if (opts.mode === 'library') panel.setAttribute('aria-describedby', 'sheet-gesture-help');
+    else panel.removeAttribute('aria-describedby');
+    if (opts.slide && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const body = this.els.sheetBody;
+      body.classList.remove('is-enter-next', 'is-enter-prev');
+      void body.offsetWidth;
+      body.classList.add(opts.slide === 'next' ? 'is-enter-next' : 'is-enter-prev');
+    }
+    if (wasOpen) {
+      this.els.sheetBody.scrollTop = 0;
+      return;
+    }
+    panel.style.transform = '';
     this.lastFocus = document.activeElement;
     this.els.cardSheet.removeAttribute('hidden');
     const closeBtn = document.getElementById('sheet-close');
     if (closeBtn) closeBtn.focus();
   }
 
+  updateSheetNav() {
+    const library = this.sheetMode === 'library';
+    this.els.sheetNav.hidden = !library;
+    if (!library) return;
+    const total = this.sheetList.length || 1;
+    const index = Math.min(this.sheetIndex, total - 1);
+    const card = this.sheetList[index];
+    this.els.sheetIndex.textContent = (index + 1) + ' of ' + total + (card ? ' · ' + displayName(card.name) : '');
+    this.els.sheetPrev.disabled = index <= 0;
+    this.els.sheetNext.disabled = index >= total - 1;
+  }
+
   closeCardSheet() {
     if (this.els.cardSheet.hasAttribute('hidden')) return;
     this.els.cardSheet.setAttribute('hidden', '');
+    this.els.sheetPanel.style.transform = '';
+    this.els.sheetPanel.classList.remove('is-dragging');
+    this.sheetMode = null;
     if (this.lastFocus && typeof this.lastFocus.focus === 'function') {
       this.lastFocus.focus();
     }
+  }
+
+  bindSheetGestures() {
+    const sheet = this.els.sheetPanel;
+    const overlay = this.els.cardSheet;
+    const self = this;
+    const state = {
+      active: false,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      startT: 0,
+      dx: 0,
+      dy: 0,
+      mode: null,
+      fromGrab: false,
+      pointerType: 'mouse'
+    };
+    this.sheetGesture = state;
+
+    const reset = function () {
+      sheet.style.transform = '';
+      overlay.style.background = '';
+      sheet.classList.remove('is-dragging');
+    };
+
+    const begin = function (x, y, target, pointerType, pointerId) {
+      if (target.closest('button, a, input, textarea')) return;
+      state.active = true;
+      state.pointerId = pointerId;
+      state.startX = x;
+      state.startY = y;
+      state.startT = performance.now();
+      state.dx = 0;
+      state.dy = 0;
+      state.mode = null;
+      state.fromGrab = !!target.closest('#sheet-grab');
+      state.pointerType = pointerType || 'mouse';
+    };
+
+    const move = function (x, y) {
+      if (!state.active) return;
+      state.dx = x - state.startX;
+      state.dy = y - state.startY;
+      if (!state.mode) {
+        if (Math.hypot(state.dx, state.dy) < 12) return;
+        state.mode = Math.abs(state.dx) > Math.abs(state.dy) * 1.2 ? 'x' : 'y';
+      }
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const dismiss = state.mode === 'y' && state.dy > 0 && (state.fromGrab || self.els.sheetBody.scrollTop <= 1);
+      const swipe = state.mode === 'x' && self.sheetMode === 'library';
+      if (!dismiss && !swipe) return;
+      sheet.classList.add('is-dragging');
+      if (dismiss) {
+        sheet.style.transform = 'translateY(' + state.dy + 'px)';
+        const fade = Math.max(0.2, 0.72 - state.dy / 520);
+        overlay.style.background = 'rgba(8, 14, 12, ' + fade.toFixed(3) + ')';
+      } else {
+        const atStart = self.sheetIndex <= 0 && state.dx > 0;
+        const atEnd = self.sheetIndex >= self.sheetList.length - 1 && state.dx < 0;
+        const damp = atStart || atEnd ? 0.28 : 1;
+        sheet.style.transform = 'translateX(' + (state.dx * damp) + 'px)';
+      }
+    };
+
+    const finish = function () {
+      if (!state.active) return;
+      const dx = state.dx;
+      const dy = state.dy;
+      const mode = state.mode;
+      const dt = Math.max(1, performance.now() - state.startT);
+      state.active = false;
+      const dismiss = mode === 'y' && dy > 0 && (state.fromGrab || self.els.sheetBody.scrollTop <= 1);
+      if (dismiss && (dy > 108 || dy / dt > 0.65)) {
+        reset();
+        self.closeCardSheet();
+        return;
+      }
+      if (mode === 'x' && self.sheetMode === 'library' && Math.abs(dx) > 64) {
+        reset();
+        self.stepLibraryCard(dx < 0 ? 1 : -1);
+        return;
+      }
+      reset();
+    };
+
+    sheet.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      begin(t.clientX, t.clientY, e.target, 'touch', null);
+    }, { passive: true });
+    sheet.addEventListener('touchmove', function (e) {
+      if (!state.active || state.pointerType !== 'touch' || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      move(t.clientX, t.clientY);
+      const scroller = self.els.sheetBody;
+      const dismiss = state.mode === 'y' && state.dy > 0 && (state.fromGrab || scroller.scrollTop <= 1);
+      const swipe = state.mode === 'x' && self.sheetMode === 'library';
+      if (dismiss || swipe) e.preventDefault();
+    }, { passive: false });
+    sheet.addEventListener('touchend', function () {
+      if (state.pointerType === 'touch') finish();
+    });
+    sheet.addEventListener('touchcancel', function () {
+      if (state.pointerType === 'touch') finish();
+    });
+
+    sheet.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'touch' || e.button !== 0) return;
+      begin(e.clientX, e.clientY, e.target, e.pointerType, e.pointerId);
+      if (state.active) sheet.setPointerCapture(e.pointerId);
+    });
+    sheet.addEventListener('pointermove', function (e) {
+      if (!state.active || state.pointerType === 'touch' || e.pointerId !== state.pointerId) return;
+      move(e.clientX, e.clientY);
+    });
+    sheet.addEventListener('pointerup', function (e) {
+      if (state.pointerType === 'touch' || e.pointerId !== state.pointerId) return;
+      finish();
+    });
+    sheet.addEventListener('pointercancel', function (e) {
+      if (state.pointerType === 'touch' || e.pointerId !== state.pointerId) return;
+      finish();
+    });
   }
 
   openNoteSheet() {
@@ -2166,28 +2367,102 @@ class LuneApp {
     });
   }
 
+  loadLibraryFilter() {
+    try {
+      const saved = localStorage.getItem(LIBRARY_FILTER_KEY);
+      if (LIBRARY_FILTERS.indexOf(saved) !== -1) this.libraryFilter = saved;
+    } catch (e) {
+      this.libraryFilter = 'all';
+    }
+    this.syncFilterChips(false);
+  }
+
+  setLibraryFilter(id) {
+    if (LIBRARY_FILTERS.indexOf(id) === -1) return;
+    this.libraryFilter = id;
+    try { localStorage.setItem(LIBRARY_FILTER_KEY, id); } catch (e) {}
+    this.syncFilterChips(true);
+    this.renderLibrary();
+  }
+
+  syncFilterChips(scroll) {
+    const self = this;
+    this.els.libraryFilters.querySelectorAll('[data-filter]').forEach(function (el) {
+      const on = el.dataset.filter === self.libraryFilter;
+      el.classList.toggle('is-selected', on);
+      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on && scroll) {
+        const scroller = self.els.libraryFilters;
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const left = el.offsetLeft - (scroller.clientWidth - el.offsetWidth) / 2;
+        scroller.scrollTo({ left: Math.max(0, left), behavior: reduce ? 'auto' : 'smooth' });
+      }
+    });
+  }
+
+  openLibrary() {
+    this.els.librarySearch.value = this.libraryQuery;
+    this.syncFilterChips(false);
+    this.renderLibrary();
+    this.showScreen('library');
+    this.syncFilterChips(true);
+  }
+
+  clearLibrarySearch(focus) {
+    this.libraryQuery = '';
+    this.els.librarySearch.value = '';
+    this.renderLibrary();
+    if (focus) this.els.librarySearch.focus();
+  }
+
+  libraryCountLabel(count) {
+    const total = TAROT_CARDS.length;
+    if (count === 0) return 'No cards';
+    const narrowed = this.libraryFilter !== 'all' || this.libraryQuery.trim() !== '';
+    if (!narrowed) return total + ' cards';
+    return count + ' of ' + total;
+  }
+
   renderLibrary() {
     const cards = this.filteredLibraryCards();
     const kept = this.keptCardKeys();
     const self = this;
-    this.els.libraryCount.textContent = cards.length === 0
-      ? 'No cards'
-      : cards.length === 1
-        ? '1 card'
-        : cards.length + ' cards';
+    const query = this.libraryQuery.trim();
+    this.els.libraryCount.textContent = this.libraryCountLabel(cards.length);
+    this.els.libraryClear.hidden = query.length === 0;
     this.els.libraryEmpty.hidden = cards.length !== 0;
+    this.els.libraryGrid.hidden = cards.length === 0;
+    if (cards.length === 0) {
+      const where = {
+        all: 'the deck',
+        major: 'the Major Arcana',
+        wands: 'Wands',
+        cups: 'Cups',
+        swords: 'Swords',
+        pentacles: 'Pentacles'
+      }[this.libraryFilter] || 'the deck';
+      this.els.libraryEmptyTitle.textContent = 'Nothing answers that.';
+      this.els.libraryEmptyCopy.textContent = query
+        ? 'Nothing in ' + where + ' matches “' + query + '”.'
+        : 'Nothing is filed under ' + where + '.';
+      document.getElementById('library-empty-clear').hidden = query.length === 0;
+    }
     this.els.libraryGrid.innerHTML = cards.map(function (card, index) {
-      const mark = self.cardWasKept(card, kept) ? '<span class="lib-kept">Kept</span>' : '';
+      const keptMark = self.cardWasKept(card, kept);
+      const label = displayName(card.name) + (keptMark ? ', kept in your journal' : '');
       return (
-        '<button type="button" class="lib-card" data-card-id="' + escapeHtml(card.id) + '">' +
+        '<button type="button" class="lib-card" role="listitem" data-card-id="' + escapeHtml(card.id) + '" aria-label="' + escapeHtml(label) + '">' +
           '<span class="lib-card-frame">' +
             cardImageHtml(card, 'lib-card-img', index > 3) +
-            mark +
+            (keptMark ? '<span class="lib-kept">Kept</span>' : '') +
           '</span>' +
           '<span class="lib-card-name">' + escapeHtml(displayName(card.name)) + '</span>' +
         '</button>'
       );
     }).join('');
+    this.els.libraryGrid.querySelectorAll('img').forEach(function (img) {
+      if (img.complete && img.naturalWidth) img.classList.add('is-loaded');
+    });
   }
 
   resetToIntention() {

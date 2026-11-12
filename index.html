@@ -34,7 +34,7 @@
         <p class="hero-sub">Breathe. Ask. Unveil.</p>
         <div class="hero-cta">
           <button type="button" class="btn-primary" id="btn-begin">Begin a reading</button>
-          <button type="button" class="text-link js-open-library">Browse the library</button>
+          <button type="button" class="btn-secondary hero-secondary js-open-library">Look through the deck</button>
         </div>
       </div>
       <div class="hero-ground" aria-hidden="true">
@@ -130,11 +130,14 @@
       <div class="library-sticky">
         <header class="top-bar">
           <button type="button" class="ghost-link btn-back" data-back="home">Back</button>
-          <h2 class="library-heading">Library</h2>
-          <span class="step-mark" id="library-count">78 cards</span>
+          <h2 class="library-heading" id="library-heading">Library</h2>
+          <p class="library-count" id="library-count" aria-live="polite">78 cards</p>
         </header>
-        <label class="sr-only" for="library-search">Search by name or keyword</label>
-        <input id="library-search" class="library-search" type="search" placeholder="Name or keyword" autocomplete="off" enterkeyhint="search">
+        <div class="library-search-wrap">
+          <label class="sr-only" for="library-search">Search by name or keyword</label>
+          <input id="library-search" class="library-search" type="search" placeholder="Name or keyword" autocomplete="off" enterkeyhint="search" aria-controls="library-grid library-empty">
+          <button type="button" class="library-clear" id="library-clear" hidden aria-label="Clear search">&times;</button>
+        </div>
         <div class="library-filters" id="library-filters" role="group" aria-label="Filter the deck">
           <button type="button" class="filter-chip is-selected" data-filter="all" aria-pressed="true">All</button>
           <button type="button" class="filter-chip" data-filter="major" aria-pressed="false">Major</button>
@@ -144,9 +147,13 @@
           <button type="button" class="filter-chip" data-filter="pentacles" aria-pressed="false">Pentacles</button>
         </div>
       </div>
-      <p class="panel-copy library-lead">The whole deck, when you want to look rather than ask.</p>
-      <div id="library-grid" class="library-grid"></div>
-      <p id="library-empty" class="library-empty" hidden>Nothing in the deck answers that.</p>
+      <p class="library-lead">Before you ask.</p>
+      <div id="library-grid" class="library-grid" role="list"></div>
+      <div id="library-empty" class="library-empty" hidden>
+        <p class="library-empty-title" id="library-empty-title">Nothing answers that.</p>
+        <p class="library-empty-copy" id="library-empty-copy">Try another word, or clear the search.</p>
+        <button type="button" class="btn-secondary" id="library-empty-clear">Clear search</button>
+      </div>
       <p class="library-credit">Pamela Colman Smith · Rider–Waite–Smith · 1909</p>
     </section>
 
@@ -166,8 +173,11 @@
 
   <!-- CARD DETAIL -->
   <div class="sheet-overlay" id="card-sheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-      <button type="button" class="sheet-close" id="sheet-close" aria-label="Close">&times;</button>
+    <div class="sheet" id="card-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-grab" id="sheet-grab" aria-hidden="true"><span></span></div>
+      <button type="button" class="sheet-close" id="sheet-close" aria-label="Close card">&times;</button>
+      <p class="sr-only" id="sheet-gesture-help">Swipe left or right for another card. Swipe down to close.</p>
+      <div class="sheet-body" id="sheet-body">
       <div class="sheet-art" id="sheet-art"></div>
       <p class="sheet-position" id="sheet-position"></p>
       <h2 class="sheet-title" id="sheet-title"></h2>
@@ -184,6 +194,12 @@
       <div class="sheet-block">
         <h3>Symbol</h3>
         <p id="sheet-symbolism"></p>
+      </div>
+      </div>
+      <div class="sheet-nav" id="sheet-nav" hidden>
+        <button type="button" class="sheet-step" id="sheet-prev" aria-label="Previous card"><span aria-hidden="true">‹</span></button>
+        <p class="sheet-index" id="sheet-index" aria-live="polite"></p>
+        <button type="button" class="sheet-step" id="sheet-next" aria-label="Next card"><span aria-hidden="true">›</span></button>
       </div>
     </div>
   </div>
