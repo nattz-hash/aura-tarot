@@ -1,4 +1,5 @@
 const TAROT_CARDS = [
+  // Major Arcana
   {
     id: 'fool',
     name: '0. The Fool',
@@ -263,6 +264,8 @@ const TAROT_CARDS = [
     description: 'A victorious dancer dances freely inside a sacred laurel wreath surrounded by four celestial guardians.',
     symbolism: 'The four corner guardians (angel, eagle, lion, bull) represent the four fixed signs of the zodiac.'
   },
+
+  // Sample Minor Arcana (Cups, Wands, Swords, Pentacles)
   {
     id: 'ace_of_cups',
     name: 'Ace of Cups',
@@ -369,236 +372,628 @@ const TAROT_CARDS = [
   }
 ];
 
-class TarotApp {
+const SPREADS = {
+  ember: {
+    id: 'ember',
+    title: 'Ember',
+    label: 'Ember · one card',
+    count: 1,
+    positions: ['Attention']
+  },
+  thread: {
+    id: 'thread',
+    title: 'Thread',
+    label: 'Thread · past · present · becoming',
+    count: 3,
+    positions: ['Past', 'Present', 'Becoming']
+  },
+  crossroads: {
+    id: 'crossroads',
+    title: 'Crossroads',
+    label: 'Crossroads · situation · challenge · counsel',
+    count: 3,
+    positions: ['Situation', 'Challenge', 'Counsel']
+  }
+};
+
+const STORAGE_KEY = 'lune_journal_v1';
+const FAN_SIZE = 9;
+
+function moonPhaseLabel(date) {
+  date = date || new Date();
+  const synodic = 29.53058867;
+  const known = Date.UTC(2000, 0, 6, 18, 14, 0);
+  const days = (date.getTime() - known) / 86400000;
+  const phase = ((days % synodic) + synodic) % synodic;
+  const idx = Math.floor((phase / synodic) * 8) % 8;
+  const names = [
+    'New Moon',
+    'Waxing Crescent',
+    'First Quarter',
+    'Waxing Gibbous',
+    'Full Moon',
+    'Waning Gibbous',
+    'Last Quarter',
+    'Waning Crescent'
+  ];
+  return names[idx];
+}
+
+function defaultGlyph(card) {
+  const suitPaths = {
+    cups: '<path d="M20 14h24v10c0 10-6 16-12 18v6h8v4H24v-4h8v-6c-6-2-12-8-12-18V14z" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+    wands: '<path d="M32 10v44M26 18l6-4 6 4M26 46l6 4 6-4" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+    swords: '<path d="M32 8v40M24 18l8-6 8 6M22 52h20" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+    pentacles: '<circle cx="32" cy="32" r="14" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M32 20l3.5 9.5H46l-8 6 3 9.5-9.5-6.5L23 45l3-9.5-8-6h10.5z" fill="none" stroke="currentColor" stroke-width="1.2"/>'
+  };
+  if (card.suit && suitPaths[card.suit]) return suitPaths[card.suit];
+  return '<circle cx="32" cy="32" r="16" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="32" cy="32" r="4" fill="currentColor"/>';
+}
+
+function pathFool() {
+  return '<circle cx="32" cy="28" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M18 50c6-10 14-14 28-8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="46" cy="18" r="2" fill="currentColor"/>';
+}
+function pathMagician() {
+  return '<path d="M32 8v48M16 32h32" stroke="currentColor" stroke-width="1.5"/><rect x="20" y="44" width="24" height="6" fill="none" stroke="currentColor" stroke-width="1.3"/>';
+}
+function pathPriestess() {
+  return '<path d="M18 12v40M46 12v40" stroke="currentColor" stroke-width="1.5"/><path d="M26 20h12v24H26z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M24 48c8-6 8-6 16 0" fill="none" stroke="currentColor" stroke-width="1.3"/>';
+}
+function pathEmpress() {
+  return '<path d="M32 14l6 10H26l6-10zM20 48h24M24 28h16v12H24z" fill="none" stroke="currentColor" stroke-width="1.4"/>';
+}
+function pathEmperor() {
+  return '<rect x="18" y="22" width="28" height="26" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M18 22l14-10 14 10M26 34h12" fill="none" stroke="currentColor" stroke-width="1.4"/>';
+}
+function pathStar() {
+  return '<path d="M32 10l4 12h12l-10 8 4 12-10-7-10 7 4-12-10-8h12z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="32" cy="48" r="3" fill="currentColor"/>';
+}
+function pathMoon() {
+  return '<path d="M38 14a18 18 0 1 0 0 36 14 14 0 0 1 0-36z" fill="none" stroke="currentColor" stroke-width="1.6"/>';
+}
+function pathSun() {
+  return '<circle cx="32" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M32 8v8M32 48v8M8 32h8M48 32h8M14 14l6 6M44 44l6 6M14 50l6-6M44 20l6-6" stroke="currentColor" stroke-width="1.4"/>';
+}
+function pathWorld() {
+  return '<circle cx="32" cy="32" r="16" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="32" cy="32" rx="8" ry="16" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M16 32h32" stroke="currentColor" stroke-width="1.2"/>';
+}
+function pathDeath() {
+  return '<path d="M32 12v40M22 24h20M24 48h16" stroke="currentColor" stroke-width="1.5"/><circle cx="32" cy="18" r="5" fill="none" stroke="currentColor" stroke-width="1.3"/>';
+}
+function pathTower() {
+  return '<path d="M24 50V22l8-10 8 10v28M20 50h24M28 30h8M28 38h8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M18 18l10 6M46 18l-10 6" stroke="currentColor" stroke-width="1.3"/>';
+}
+function pathLovers() {
+  return '<circle cx="24" cy="24" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="40" cy="24" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M18 48c4-10 10-12 14-12s10 2 14 12" fill="none" stroke="currentColor" stroke-width="1.4"/>';
+}
+
+function cardSvg(card, size) {
+  size = size || 64;
+  const map = {
+    fool: pathFool(),
+    magician: pathMagician(),
+    high_priestess: pathPriestess(),
+    empress: pathEmpress(),
+    emperor: pathEmperor(),
+    star: pathStar(),
+    moon: pathMoon(),
+    sun: pathSun(),
+    world: pathWorld(),
+    death: pathDeath(),
+    tower: pathTower(),
+    lovers: pathLovers()
+  };
+  const inner = map[card.id] || defaultGlyph(card);
+  return '<svg class="card-svg" viewBox="0 0 64 64" width="' + size + '" height="' + size + '" aria-hidden="true">' + inner + '</svg>';
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+  }
+  return a;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function displayName(name) {
+  return String(name).replace(/^\d+\.\s*/, '');
+}
+
+class LuneApp {
   constructor() {
-    this.currentSpread = 'daily';
-    this.drawnCards = [];
+    this.spreadId = 'ember';
+    this.question = '';
+    this.note = '';
+    this.fanDeck = [];
+    this.picked = [];
     this.history = [];
-    this.loadHistory();
-    this.initEventListeners();
-    this.renderHistory();
+    this.holdProgress = 0;
+    this.holding = false;
+    this.holdRaf = null;
+    this.holdStarted = 0;
+
+    this.cacheDom();
+    this.loadJournal();
+    this.bindEvents();
+    this.initStarfield();
+    this.renderMoon();
+    this.renderJournal();
+    this.showScreen('home');
   }
 
-  initEventListeners() {
-    const drawBtn = document.getElementById('draw-btn');
-    const spreadSelect = document.getElementById('spread-select');
-    const questionInput = document.getElementById('question-input');
-    const clearHistoryBtn = document.getElementById('clear-history');
-    const modalClose = document.getElementById('modal-close');
+  cacheDom() {
+    this.screens = {
+      home: document.getElementById('screen-home'),
+      intention: document.getElementById('screen-intention'),
+      shuffle: document.getElementById('screen-shuffle'),
+      draw: document.getElementById('screen-draw'),
+      reveal: document.getElementById('screen-reveal'),
+      journal: document.getElementById('screen-journal')
+    };
+    this.els = {
+      moonPhase: document.getElementById('moon-phase'),
+      question: document.getElementById('question-input'),
+      shuffleOrb: document.getElementById('shuffle-orb'),
+      orbProgress: document.getElementById('orb-progress'),
+      shufflePrompt: document.getElementById('shuffle-prompt'),
+      shuffleHint: document.getElementById('shuffle-hint'),
+      cardFan: document.getElementById('card-fan'),
+      drawTitle: document.getElementById('draw-title'),
+      drawCopy: document.getElementById('draw-copy'),
+      drawCount: document.getElementById('draw-count'),
+      readingQuestion: document.getElementById('reading-question'),
+      revealTitle: document.getElementById('reveal-spread-title'),
+      revealCards: document.getElementById('reveal-cards'),
+      journalList: document.getElementById('journal-list'),
+      cardSheet: document.getElementById('card-sheet'),
+      noteSheet: document.getElementById('note-sheet'),
+      noteInput: document.getElementById('note-input')
+    };
+  }
 
-    if (drawBtn) {
-      drawBtn.addEventListener('click', () => {
-        const question = questionInput ? questionInput.value.trim() : '';
-        this.currentSpread = spreadSelect ? spreadSelect.value : 'daily';
-        this.performReading(question);
-      });
-    }
+  bindEvents() {
+    document.getElementById('btn-begin').addEventListener('click', () => this.showScreen('intention'));
+    document.getElementById('btn-open-journal').addEventListener('click', () => {
+      this.renderJournal();
+      this.showScreen('journal');
+    });
+    document.getElementById('btn-to-shuffle').addEventListener('click', () => {
+      this.question = this.els.question.value.trim();
+      this.resetShuffle();
+      this.showScreen('shuffle');
+    });
+    document.getElementById('btn-new-reading').addEventListener('click', () => this.resetToIntention());
+    document.getElementById('btn-finish').addEventListener('click', () => this.keepReading());
+    document.getElementById('btn-save-note').addEventListener('click', () => this.openNoteSheet());
+    document.getElementById('btn-save-note-confirm').addEventListener('click', () => this.saveNoteFromSheet());
+    document.getElementById('note-close').addEventListener('click', () => this.closeNoteSheet());
+    document.getElementById('sheet-close').addEventListener('click', () => this.closeCardSheet());
+    document.getElementById('btn-clear-journal').addEventListener('click', () => this.clearJournal());
 
-    if (clearHistoryBtn) {
-      clearHistoryBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear your reading history?')) {
-          this.history = [];
-          localStorage.removeItem('tarot_history');
-          this.renderHistory();
-        }
-      });
-    }
+    document.querySelectorAll('.btn-back').forEach((btn) => {
+      btn.addEventListener('click', () => this.showScreen(btn.dataset.back));
+    });
 
-    if (modalClose) {
-      modalClose.addEventListener('click', () => {
-        this.closeModal();
-      });
-    }
+    document.querySelectorAll('.spread-option').forEach((btn) => {
+      btn.addEventListener('click', () => this.selectSpread(btn.dataset.spread));
+    });
 
-    window.addEventListener('click', (e) => {
-      const modal = document.getElementById('card-modal');
-      if (modal && e.target === modal) {
-        this.closeModal();
+    const orb = this.els.shuffleOrb;
+    const start = (e) => {
+      e.preventDefault();
+      this.startHold();
+    };
+    const end = (e) => {
+      e.preventDefault();
+      this.endHold();
+    };
+    orb.addEventListener('pointerdown', start);
+    orb.addEventListener('pointerup', end);
+    orb.addEventListener('pointerleave', end);
+    orb.addEventListener('pointercancel', end);
+
+    this.els.cardSheet.addEventListener('click', (e) => {
+      if (e.target === this.els.cardSheet) this.closeCardSheet();
+    });
+    this.els.noteSheet.addEventListener('click', (e) => {
+      if (e.target === this.els.noteSheet) this.closeNoteSheet();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeCardSheet();
+        this.closeNoteSheet();
       }
     });
   }
 
-  shuffleDeck() {
-    const deck = [...TAROT_CARDS];
-    for (let i = deck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
-    return deck;
+  renderMoon() {
+    this.els.moonPhase.textContent = moonPhaseLabel() + ' · tonight';
   }
 
-  performReading(question) {
-    const deck = this.shuffleDeck();
-    this.drawnCards = [];
-
-    let count = 1;
-    let positions = ['Daily Guidance'];
-
-    if (this.currentSpread === 'three-card') {
-      count = 3;
-      positions = ['Past / Root', 'Present / Current Energy', 'Future / Potential Outcome'];
-    }
-
-    for (let i = 0; i < count; i++) {
-      const card = deck[i];
-      const isReversed = Math.random() < 0.3;
-      this.drawnCards.push({
-        card,
-        isReversed,
-        positionName: positions[i]
-      });
-    }
-
-    this.renderReadingResult(question);
-    this.saveReading(question);
+  showScreen(name) {
+    Object.keys(this.screens).forEach((key) => {
+      const el = this.screens[key];
+      const active = key === name;
+      el.classList.toggle('is-active', active);
+      if (active) el.removeAttribute('hidden');
+      else el.setAttribute('hidden', '');
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  renderReadingResult(question) {
-    const resultsContainer = document.getElementById('reading-results');
-    if (!resultsContainer) return;
-
-    let html = `
-      <div class="reading-summary fade-in">
-        <h3>${this.currentSpread === 'daily' ? '1-Card Daily Guidance' : '3-Card Spread (Past, Present, Future)'}</h3>
-        ${question ? `<p class="user-question">"${question}"</p>` : ''}
-      </div>
-      <div class="cards-layout ${this.currentSpread}">
-    `;
-
-    this.drawnCards.forEach((item, index) => {
-      html += `
-        <div class="tarot-card-container fade-in" style="animation-delay: ${index * 0.2}s">
-          ${item.positionName ? `<div class="card-position-label">${item.positionName}</div>` : ''}
-          <div class="tarot-card ${item.isReversed ? 'reversed' : ''}" data-index="${index}">
-            <div class="card-face card-back">
-              <div class="card-back-pattern"></div>
-            </div>
-            <div class="card-face card-front">
-              <div class="card-header">${item.card.name}</div>
-              <div class="card-symbol-art">✧</div>
-              <div class="card-footer">${item.isReversed ? 'Reversed' : 'Upright'}</div>
-            </div>
-          </div>
-          <div class="card-info-preview">
-            <h4>${item.card.name} ${item.isReversed ? '(Reversed)' : ''}</h4>
-            <p class="keywords"><strong>Keywords:</strong> ${item.card.keywords.join(', ')}</p>
-            <p class="meaning-snippet">${item.isReversed ? item.card.reversedMeaning : item.card.uprightMeaning}</p>
-            <button class="btn-details" data-index="${index}">View Full Wisdom</button>
-          </div>
-        </div>
-      `;
-    });
-
-    html += `</div>`;
-    resultsContainer.innerHTML = html;
-
-    const detailBtns = resultsContainer.querySelectorAll('.btn-details');
-    detailBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const idx = parseInt(e.currentTarget.getAttribute('data-index'), 10);
-        this.openCardModal(idx);
-      });
-    });
-
-    const cards = resultsContainer.querySelectorAll('.tarot-card');
-    cards.forEach((cardEl) => {
-      cardEl.addEventListener('click', (e) => {
-        const parent = e.currentTarget.closest('.tarot-card-container');
-        const btn = parent ? parent.querySelector('.btn-details') : null;
-        if (btn) btn.click();
-      });
+  selectSpread(id) {
+    this.spreadId = id;
+    document.querySelectorAll('.spread-option').forEach((btn) => {
+      const on = btn.dataset.spread === id;
+      btn.classList.toggle('is-selected', on);
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
     });
   }
 
-  openCardModal(index) {
-    const item = this.drawnCards[index];
+  resetShuffle() {
+    this.holdProgress = 0;
+    this.holding = false;
+    this.els.orbProgress.style.setProperty('--progress', '0%');
+    this.els.shuffleOrb.classList.remove('is-holding', 'is-ready');
+    this.els.shufflePrompt.textContent = 'Press and hold. Breathe with the deck.';
+    this.els.shuffleHint.textContent = 'Hold for a full breath';
+  }
+
+  startHold() {
+    if (this.holding) return;
+    this.holding = true;
+    this.holdStarted = performance.now();
+    this.els.shuffleOrb.classList.add('is-holding');
+    this.els.shuffleHint.textContent = 'Keep holding…';
+    const tick = (now) => {
+      if (!this.holding) return;
+      const elapsed = now - this.holdStarted;
+      const duration = 1600;
+      this.holdProgress = Math.min(1, elapsed / duration);
+      this.els.orbProgress.style.setProperty('--progress', (this.holdProgress * 100).toFixed(1) + '%');
+      if (this.holdProgress >= 1) {
+        this.completeShuffle();
+        return;
+      }
+      this.holdRaf = requestAnimationFrame(tick);
+    };
+    this.holdRaf = requestAnimationFrame(tick);
+  }
+
+  endHold() {
+    if (!this.holding) return;
+    this.holding = false;
+    if (this.holdRaf) cancelAnimationFrame(this.holdRaf);
+    this.els.shuffleOrb.classList.remove('is-holding');
+    if (this.holdProgress < 1) {
+      this.holdProgress = 0;
+      this.els.orbProgress.style.setProperty('--progress', '0%');
+      this.els.shuffleHint.textContent = 'Hold a little longer';
+    }
+  }
+
+  completeShuffle() {
+    this.holding = false;
+    if (this.holdRaf) cancelAnimationFrame(this.holdRaf);
+    this.els.shuffleOrb.classList.remove('is-holding');
+    this.els.shuffleOrb.classList.add('is-ready');
+    this.els.shufflePrompt.textContent = 'The deck is still.';
+    this.els.shuffleHint.textContent = 'Opening the fan…';
+    this.prepareFan();
+    setTimeout(() => this.showScreen('draw'), 550);
+  }
+
+  prepareFan() {
+    const spread = SPREADS[this.spreadId];
+    this.picked = [];
+    this.fanDeck = shuffle(TAROT_CARDS).slice(0, FAN_SIZE).map(function (card, i) {
+      return {
+        uid: 'fan_' + i + '_' + card.id,
+        card: card,
+        isReversed: Math.random() < 0.28
+      };
+    });
+    this.els.drawTitle.textContent = spread.count === 1
+      ? 'Which card calls to you?'
+      : 'Choose ' + spread.count + ' cards';
+    this.els.drawCopy.textContent = spread.count === 1
+      ? 'Tap the face-down card that pulls at you.'
+      : 'Pick ' + spread.count + ' cards, in the order they call.';
+    this.renderFan();
+    this.updateDrawCount();
+  }
+
+  renderFan() {
+    const fan = this.els.cardFan;
+    fan.innerHTML = '';
+    const n = this.fanDeck.length;
+    const spreadAngle = Math.min(84, 12 * (n - 1));
+    const self = this;
+    this.fanDeck.forEach(function (item, i) {
+      const t = n === 1 ? 0.5 : i / (n - 1);
+      const angle = -spreadAngle / 2 + t * spreadAngle;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fan-card';
+      btn.setAttribute('role', 'listitem');
+      btn.setAttribute('aria-label', 'Face-down card ' + (i + 1));
+      btn.style.setProperty('--angle', angle + 'deg');
+      btn.style.setProperty('--x', ((t - 0.5) * 28).toFixed(1) + 'px');
+      btn.style.zIndex = String(i + 1);
+      btn.style.animationDelay = i * 0.04 + 's';
+      btn.innerHTML = '<div class="fan-card-face"><svg class="fan-card-pattern" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="18" stroke="currentColor" stroke-width="1.2" opacity="0.7"/><path d="M40 22a14 14 0 1 0 0 20 11 11 0 0 1 0-20z" fill="currentColor" opacity="0.35"/></svg></div>';
+      btn.addEventListener('pointerenter', function () {
+        btn.style.zIndex = '30';
+      });
+      btn.addEventListener('pointerleave', function () {
+        if (!btn.classList.contains('is-picked')) btn.style.zIndex = String(i + 1);
+      });
+      btn.addEventListener('click', function () {
+        self.pickFanCard(item.uid, btn);
+      });
+      fan.appendChild(btn);
+    });
+  }
+
+  pickFanCard(uid, btn) {
+    const spread = SPREADS[this.spreadId];
+    if (this.picked.find(function (p) { return p.uid === uid; })) return;
+    if (this.picked.length >= spread.count) return;
+
+    const item = this.fanDeck.find(function (f) { return f.uid === uid; });
     if (!item) return;
 
-    const modal = document.getElementById('card-modal');
-    const title = document.getElementById('modal-title');
-    const subtitle = document.getElementById('modal-subtitle');
-    const desc = document.getElementById('modal-description');
-    const meaning = document.getElementById('modal-meaning');
-    const symbolism = document.getElementById('modal-symbolism');
-    const keywords = document.getElementById('modal-keywords');
+    btn.classList.add('is-picked');
+    this.picked.push({
+      uid: item.uid,
+      card: item.card,
+      isReversed: item.isReversed,
+      positionName: spread.positions[this.picked.length]
+    });
+    this.updateDrawCount();
 
-    if (title) title.textContent = item.card.name;
-    if (subtitle) subtitle.textContent = `Element: ${item.card.element} | Arcana: ${item.card.arcana.toUpperCase()} ${item.isReversed ? '| Reversed' : '| Upright'}`;
-    if (desc) desc.textContent = item.card.description;
-    if (meaning) {
-      meaning.innerHTML = `<strong>${item.isReversed ? 'Reversed Meaning:' : 'Upright Meaning:'}</strong> ${item.isReversed ? item.card.reversedMeaning : item.card.uprightMeaning}`;
+    if (this.picked.length >= spread.count) {
+      const self = this;
+      setTimeout(function () { self.openReveal(); }, 420);
     }
-    if (symbolism) symbolism.textContent = item.card.symbolism;
-    if (keywords) keywords.innerHTML = item.card.keywords.map((k) => `<span class="badge">${k}</span>`).join(' ');
-
-    if (modal) modal.style.display = 'flex';
   }
 
-  closeModal() {
-    const modal = document.getElementById('card-modal');
-    if (modal) modal.style.display = 'none';
+  updateDrawCount() {
+    const spread = SPREADS[this.spreadId];
+    const left = spread.count - this.picked.length;
+    this.els.drawCount.textContent = left <= 0
+      ? 'Opening your reading…'
+      : left === spread.count
+        ? ''
+        : left + ' remaining';
   }
 
-  saveReading(question) {
+  openReveal() {
+    const spread = SPREADS[this.spreadId];
+    this.note = '';
+    this.els.readingQuestion.textContent = this.question
+      ? '“' + this.question + '”'
+      : 'An open reading';
+    this.els.revealTitle.textContent = spread.label;
+    this.renderReveal();
+    this.showScreen('reveal');
+  }
+
+  renderReveal() {
+    const wrap = this.els.revealCards;
+    wrap.innerHTML = '';
+    const self = this;
+    this.picked.forEach(function (item, index) {
+      const meaning = item.isReversed ? item.card.reversedMeaning : item.card.uprightMeaning;
+      const el = document.createElement('article');
+      el.className = 'revealed';
+      el.style.animationDelay = index * 0.18 + 's';
+      el.innerHTML =
+        '<div class="revealed-position">' + escapeHtml(item.positionName) + '</div>' +
+        '<button type="button" class="tarot-card ' + (item.isReversed ? 'is-reversed' : '') + '" data-idx="' + index + '" aria-label="Reveal ' + escapeHtml(displayName(item.card.name)) + '">' +
+          '<div class="tarot-card-inner">' +
+            '<div class="card-side card-back-side">' +
+              '<svg width="48" height="48" viewBox="0 0 64 64" fill="none" aria-hidden="true">' +
+                '<circle cx="32" cy="32" r="18" stroke="currentColor" stroke-width="1.2" opacity="0.7"/>' +
+                '<path d="M40 22a14 14 0 1 0 0 20 11 11 0 0 1 0-20z" fill="currentColor" opacity="0.35"/>' +
+              '</svg>' +
+            '</div>' +
+            '<div class="card-side card-front-side">' +
+              '<div class="card-name">' + escapeHtml(displayName(item.card.name)) + '</div>' +
+              '<div class="card-art">' + cardSvg(item.card, 56) + '</div>' +
+              '<div class="card-orient">' + (item.isReversed ? 'Reversed' : 'Upright') + '</div>' +
+            '</div>' +
+          '</div>' +
+        '</button>' +
+        '<div class="revealed-summary">' +
+          '<h3>' + escapeHtml(displayName(item.card.name)) + '</h3>' +
+          '<p>' + escapeHtml(meaning) + '</p>' +
+          '<button type="button" class="btn-details" data-idx="' + index + '">Full reading</button>' +
+        '</div>';
+      wrap.appendChild(el);
+
+      const cardBtn = el.querySelector('.tarot-card');
+      setTimeout(function () { cardBtn.classList.add('is-flipped'); }, 280 + index * 320);
+
+      cardBtn.addEventListener('click', function () { self.openCardSheet(index); });
+      el.querySelector('.btn-details').addEventListener('click', function () { self.openCardSheet(index); });
+    });
+  }
+
+  openCardSheet(index) {
+    const item = this.picked[index];
+    if (!item) return;
+    const meaning = item.isReversed ? item.card.reversedMeaning : item.card.uprightMeaning;
+    document.getElementById('sheet-art').innerHTML = cardSvg(item.card, 72);
+    document.getElementById('sheet-position').textContent = item.positionName;
+    document.getElementById('sheet-title').textContent = displayName(item.card.name);
+    document.getElementById('sheet-meta').textContent =
+      (item.isReversed ? 'Reversed' : 'Upright') + ' · ' + item.card.element + ' · ' + item.card.arcana + ' arcana';
+    document.getElementById('sheet-keywords').innerHTML = item.card.keywords
+      .map(function (k) { return '<span>' + escapeHtml(k) + '</span>'; })
+      .join('');
+    document.getElementById('sheet-meaning').textContent = meaning;
+    document.getElementById('sheet-description').textContent = item.card.description;
+    document.getElementById('sheet-symbolism').textContent = item.card.symbolism;
+    this.els.cardSheet.removeAttribute('hidden');
+  }
+
+  closeCardSheet() {
+    this.els.cardSheet.setAttribute('hidden', '');
+  }
+
+  openNoteSheet() {
+    this.els.noteInput.value = this.note;
+    this.els.noteSheet.removeAttribute('hidden');
+    this.els.noteInput.focus();
+  }
+
+  closeNoteSheet() {
+    this.els.noteSheet.setAttribute('hidden', '');
+  }
+
+  saveNoteFromSheet() {
+    this.note = this.els.noteInput.value.trim();
+    this.closeNoteSheet();
+  }
+
+  keepReading() {
+    const spread = SPREADS[this.spreadId];
     const record = {
-      id: 'reading_' + Date.now(),
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      type: this.currentSpread === 'daily' ? '1-Card Daily Guidance' : '3-Card Spread',
-      question: question || 'General Reading',
-      cards: [...this.drawnCards]
+      id: 'r_' + Date.now(),
+      date: new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      }),
+      spread: spread.title,
+      question: this.question || 'Open reading',
+      note: this.note,
+      moon: moonPhaseLabel(),
+      cards: this.picked.map(function (p) {
+        return {
+          name: p.card.name,
+          reversed: p.isReversed,
+          position: p.positionName
+        };
+      })
     };
-
     this.history.unshift(record);
-    if (this.history.length > 20) this.history.pop();
-    localStorage.setItem('tarot_history', JSON.stringify(this.history));
-    this.renderHistory();
+    if (this.history.length > 30) this.history.length = 30;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.history));
+    this.renderJournal();
+    this.showScreen('journal');
   }
 
-  loadHistory() {
-    const saved = localStorage.getItem('tarot_history');
-    if (saved) {
-      try {
-        this.history = JSON.parse(saved);
-      } catch (e) {
-        this.history = [];
-      }
+  loadJournal() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      this.history = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(this.history)) this.history = [];
+    } catch (e) {
+      this.history = [];
     }
   }
 
-  renderHistory() {
-    const listEl = document.getElementById('history-list');
-    if (!listEl) return;
-
-    if (this.history.length === 0) {
-      listEl.innerHTML = `<p class="no-history">No past readings yet. Draw your first card above!</p>`;
+  renderJournal() {
+    const list = this.els.journalList;
+    if (!this.history.length) {
+      list.innerHTML = '<p class="journal-empty">No readings kept yet. Begin when you are ready.</p>';
       return;
     }
+    list.innerHTML = this.history.map(function (rec) {
+      return (
+        '<article class="journal-item">' +
+          '<div class="journal-item-head">' +
+            '<span>' + escapeHtml(rec.spread) + ' · ' + escapeHtml(rec.moon || '') + '</span>' +
+            '<span>' + escapeHtml(rec.date) + '</span>' +
+          '</div>' +
+          '<q>' + escapeHtml(rec.question) + '</q>' +
+          '<div class="journal-tags">' +
+            rec.cards.map(function (c) {
+              return '<span class="journal-tag">' + escapeHtml(displayName(c.name)) + (c.reversed ? ' (rev)' : '') + '</span>';
+            }).join('') +
+          '</div>' +
+          (rec.note ? '<p class="journal-note">' + escapeHtml(rec.note) + '</p>' : '') +
+        '</article>'
+      );
+    }).join('');
+  }
 
-    let html = '';
-    this.history.forEach((rec) => {
-      let cardTags = '';
-      rec.cards.forEach((c) => {
-        cardTags += `<span class="history-card-tag">${c.card.name} ${c.isReversed ? '(Rev)' : ''}</span>`;
-      });
+  clearJournal() {
+    if (!this.history.length) return;
+    if (!confirm('Clear your LUNÉ journal?')) return;
+    this.history = [];
+    localStorage.removeItem(STORAGE_KEY);
+    this.renderJournal();
+  }
 
-      html += `
-        <div class="history-item">
-          <div class="history-header">
-            <span class="history-type">${rec.type}</span>
-            <span class="history-date">${rec.date}</span>
-          </div>
-          ${rec.question ? `<p class="history-q">"${rec.question}"</p>` : ''}
-          <div class="history-cards-summary">
-            ${cardTags}
-          </div>
-        </div>
-      `;
+  resetToIntention() {
+    this.picked = [];
+    this.note = '';
+    this.els.question.value = this.question;
+    this.showScreen('intention');
+  }
+
+  initStarfield() {
+    const canvas = document.getElementById('starfield');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let stars = [];
+    let w = 0;
+    let h = 0;
+    let raf;
+
+    const resize = function () {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      const count = Math.min(140, Math.floor((w * h) / 12000));
+      stars = [];
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * w,
+          y: Math.random() * h * 0.75,
+          r: Math.random() * 1.4 + 0.2,
+          a: Math.random() * 0.6 + 0.15,
+          s: Math.random() * 0.4 + 0.1,
+          p: Math.random() * Math.PI * 2
+        });
+      }
+    };
+
+    const draw = function (t) {
+      ctx.clearRect(0, 0, w, h);
+      for (let i = 0; i < stars.length; i++) {
+        const star = stars[i];
+        const twinkle = 0.55 + Math.sin(t * 0.001 * star.s + star.p) * 0.45;
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(232, 235, 228,' + (star.a * twinkle) + ')';
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    };
+
+    resize();
+    draw(0);
+    window.addEventListener('resize', resize);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) cancelAnimationFrame(raf);
+      else raf = requestAnimationFrame(draw);
     });
-
-    listEl.innerHTML = html;
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  new TarotApp();
+document.addEventListener('DOMContentLoaded', function () {
+  new LuneApp();
 });

@@ -3,107 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aura Tarot | Mystical Oracle & Readings</title>
-  <link rel="stylesheet" href="style.css">
+  <title>LUNÉ — Ritual Tarot</title>
+  <meta name="description" content="A breath-led tarot ritual. Name what you carry, shuffle with presence, and unveil what finds you.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="celestial-bg"></div>
-  
-  <header class="site-header">
-    <div class="container header-content">
-      <div class="logo">
-        <span class="logo-icon">✧</span>
-        <h1>Aura Tarot</h1>
-      </div>
-      <p class="tagline">Seek clarity, divine wisdom, and inner light</p>
-    </div>
-  </header>
+  <div class="sky" aria-hidden="true">
+    <div class="sky-wash"></div>
+    <div class="sky-aurora"></div>
+    <canvas id="starfield" class="starfield"></canvas>
+    <div class="horizon"></div>
+  </div>
 
-  <main class="container main-content">
-    <!-- Reading Setup Section -->
-    <section class="reading-setup card-surface">
-      <h2>Begin Your Reading</h2>
-      <p class="section-desc">Center your energy, reflect on your question, and draw your cards.</p>
-      
-      <div class="controls-grid">
-        <div class="control-group">
-          <label for="spread-select">Choose Spread</label>
-          <select id="spread-select" class="input-field">
-            <option value="daily">1-Card Daily Guidance</option>
-            <option value="three-card">3-Card Spread (Past, Present, Future)</option>
-          </select>
-        </div>
-
-        <div class="control-group full-width">
-          <label for="question-input">Your Question or Intention (Optional)</label>
-          <input type="text" id="question-input" class="input-field" placeholder="e.g., What energy should I focus on today?">
+  <div class="app" id="app">
+    <!-- HOME -->
+    <section class="screen screen-home is-active" id="screen-home" data-screen="home">
+      <header class="top-bar">
+        <button type="button" class="ghost-link" id="btn-open-journal" aria-label="Open journal">Journal</button>
+      </header>
+      <div class="hero">
+        <p class="moon-phase" id="moon-phase"></p>
+        <h1 class="brand">LUNÉ</h1>
+        <p class="hero-line">A ritual for what words cannot name.</p>
+        <p class="hero-sub">Breathe. Ask. Unveil.</p>
+        <div class="hero-cta">
+          <button type="button" class="btn-primary" id="btn-begin">Begin a reading</button>
         </div>
       </div>
+      <div class="hero-ground" aria-hidden="true">
+        <svg class="moon-mark" viewBox="0 0 120 120" fill="none">
+          <circle cx="60" cy="60" r="42" stroke="currentColor" stroke-width="1.2" opacity="0.55"/>
+          <path d="M72 28a38 38 0 1 0 0 64 30 30 0 0 1 0-64z" fill="currentColor" opacity="0.22"/>
+        </svg>
+      </div>
+    </section>
 
-      <div class="action-container">
-        <button id="draw-btn" class="btn-primary">
-          <span>✨ Shuffle & Draw Cards</span>
+    <!-- INTENTION -->
+    <section class="screen" id="screen-intention" data-screen="intention" hidden>
+      <header class="top-bar">
+        <button type="button" class="ghost-link btn-back" data-back="home">Back</button>
+        <span class="step-mark">I · Name</span>
+      </header>
+      <div class="panel">
+        <h2 class="panel-title">What are you carrying?</h2>
+        <p class="panel-copy">Write a question, or leave it open and let the cards speak first.</p>
+        <label class="sr-only" for="question-input">Your intention</label>
+        <textarea id="question-input" class="intention-field" rows="3" maxlength="180" placeholder="What energy wants my attention today?"></textarea>
+        <div class="spread-chooser" role="radiogroup" aria-label="Choose a spread">
+          <button type="button" class="spread-option is-selected" data-spread="ember" role="radio" aria-checked="true">
+            <span class="spread-name">Ember</span>
+            <span class="spread-desc">One card · attention</span>
+          </button>
+          <button type="button" class="spread-option" data-spread="thread" role="radio" aria-checked="false">
+            <span class="spread-name">Thread</span>
+            <span class="spread-desc">Three · past · present · becoming</span>
+          </button>
+          <button type="button" class="spread-option" data-spread="crossroads" role="radio" aria-checked="false">
+            <span class="spread-name">Crossroads</span>
+            <span class="spread-desc">Three · situation · challenge · counsel</span>
+          </button>
+        </div>
+        <button type="button" class="btn-primary" id="btn-to-shuffle">Continue</button>
+      </div>
+    </section>
+
+    <!-- SHUFFLE -->
+    <section class="screen" id="screen-shuffle" data-screen="shuffle" hidden>
+      <header class="top-bar">
+        <button type="button" class="ghost-link btn-back" data-back="intention">Back</button>
+        <span class="step-mark">II · Still</span>
+      </header>
+      <div class="shuffle-stage">
+        <p class="shuffle-prompt" id="shuffle-prompt">Press and hold. Breathe with the deck.</p>
+        <button type="button" class="shuffle-orb" id="shuffle-orb" aria-label="Hold to shuffle the deck">
+          <span class="orb-ring"></span>
+          <span class="orb-ring delay"></span>
+          <span class="orb-core">
+            <span class="orb-glyph" aria-hidden="true">☽</span>
+          </span>
+          <span class="orb-progress" id="orb-progress"></span>
         </button>
+        <p class="shuffle-hint" id="shuffle-hint">Hold for a full breath</p>
       </div>
     </section>
 
-    <!-- Reading Results Section -->
-    <section id="reading-results" class="reading-results-section">
-      <div class="welcome-banner card-surface">
-        <div class="oracle-icon">🔮</div>
-        <h3>Your deck is shuffled and waiting</h3>
-        <p>Select your spread above and click "Shuffle & Draw Cards" to reveal your oracle guidance.</p>
+    <!-- DRAW -->
+    <section class="screen" id="screen-draw" data-screen="draw" hidden>
+      <header class="top-bar">
+        <button type="button" class="ghost-link btn-back" data-back="shuffle">Back</button>
+        <span class="step-mark">III · Choose</span>
+      </header>
+      <div class="draw-stage">
+        <h2 class="panel-title" id="draw-title">Which card calls to you?</h2>
+        <p class="panel-copy" id="draw-copy">Tap a face-down card. Trust the pull.</p>
+        <div class="card-fan" id="card-fan" role="list"></div>
+        <p class="draw-count" id="draw-count"></p>
       </div>
     </section>
 
-    <!-- History Section -->
-    <section class="history-section card-surface">
-      <div class="history-header-row">
-        <h3>Recent Readings</h3>
-        <button id="clear-history" class="btn-text">Clear History</button>
-      </div>
-      <div id="history-list" class="history-list">
-        <p class="no-history">No past readings yet. Draw your first card above!</p>
+    <!-- REVEAL -->
+    <section class="screen" id="screen-reveal" data-screen="reveal" hidden>
+      <header class="top-bar">
+        <button type="button" class="ghost-link" id="btn-new-reading">New reading</button>
+        <span class="step-mark">Unveil</span>
+      </header>
+      <div class="reveal-stage">
+        <p class="reading-question" id="reading-question"></p>
+        <h2 class="panel-title" id="reveal-spread-title"></h2>
+        <div class="reveal-cards" id="reveal-cards"></div>
+        <div class="reveal-actions">
+          <button type="button" class="btn-secondary" id="btn-save-note">Add a note</button>
+          <button type="button" class="btn-primary" id="btn-finish">Keep in journal</button>
+        </div>
       </div>
     </section>
-  </main>
 
-  <!-- Card Detail Modal -->
-  <div id="card-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-content card-surface">
-      <button id="modal-close" class="modal-close">&times;</button>
-      <div class="modal-body">
-        <h2 id="modal-title">Card Name</h2>
-        <p id="modal-subtitle" class="modal-subtitle">Element | Arcana</p>
-        
-        <div id="modal-keywords" class="modal-keywords"></div>
-        
-        <div class="modal-section">
-          <h4>Description</h4>
-          <p id="modal-description"></p>
-        </div>
+    <!-- JOURNAL -->
+    <section class="screen" id="screen-journal" data-screen="journal" hidden>
+      <header class="top-bar">
+        <button type="button" class="ghost-link btn-back" data-back="home">Back</button>
+        <button type="button" class="ghost-link danger" id="btn-clear-journal">Clear</button>
+      </header>
+      <div class="panel journal-panel">
+        <h2 class="panel-title">Journal</h2>
+        <p class="panel-copy">Readings you chose to keep live here.</p>
+        <div id="journal-list" class="journal-list"></div>
+      </div>
+    </section>
+  </div>
 
-        <div class="modal-section">
-          <h4>Meaning</h4>
-          <p id="modal-meaning"></p>
-        </div>
-
-        <div class="modal-section">
-          <h4>Symbolism</h4>
-          <p id="modal-symbolism"></p>
-        </div>
+  <!-- CARD DETAIL -->
+  <div class="sheet-overlay" id="card-sheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <button type="button" class="sheet-close" id="sheet-close" aria-label="Close">&times;</button>
+      <div class="sheet-art" id="sheet-art"></div>
+      <p class="sheet-position" id="sheet-position"></p>
+      <h2 class="sheet-title" id="sheet-title"></h2>
+      <p class="sheet-meta" id="sheet-meta"></p>
+      <div class="sheet-keywords" id="sheet-keywords"></div>
+      <div class="sheet-block">
+        <h3>Meaning</h3>
+        <p id="sheet-meaning"></p>
+      </div>
+      <div class="sheet-block">
+        <h3>Image</h3>
+        <p id="sheet-description"></p>
+      </div>
+      <div class="sheet-block">
+        <h3>Symbol</h3>
+        <p id="sheet-symbolism"></p>
       </div>
     </div>
   </div>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p>&copy; 2026 Aura Tarot Oracle. Designed with light, clarity, and intuition.</p>
+  <!-- NOTE MODAL -->
+  <div class="sheet-overlay" id="note-sheet" hidden>
+    <div class="sheet note-sheet" role="dialog" aria-modal="true" aria-labelledby="note-title">
+      <button type="button" class="sheet-close" id="note-close" aria-label="Close">&times;</button>
+      <h2 class="sheet-title" id="note-title">A note to yourself</h2>
+      <p class="panel-copy">What did this reading stir?</p>
+      <textarea id="note-input" class="intention-field" rows="4" maxlength="400" placeholder="Something I want to remember…"></textarea>
+      <button type="button" class="btn-primary" id="btn-save-note-confirm">Save note</button>
     </div>
-  </footer>
+  </div>
 
   <script src="main.js"></script>
 </body>
