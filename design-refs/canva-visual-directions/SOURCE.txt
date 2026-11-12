@@ -1,0 +1,15 @@
+Source Canva design
+--------------------
+Title: tarot_mobile_visual_directions.pdf
+Design ID: DAHYyCZIz14
+Edit: https://www.canva.com/d/upWVJbIdZfk5HDK
+View: https://www.canva.com/d/hXFZb9qravJO6DL
+
+Exported pages (PNG):
+  page-1.png  Material-inspired light
+  page-2.png  Dark bento (closest to LUNÉ)
+  page-3.png  Frosted glass
+  page-4.png  Neon synthwave
+
+Used in this repo to refine LUNÉ intention/spread/journal copy
+toward the Dark bento direction's quieter, benefit-led wording.

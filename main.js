@@ -383,9 +383,9 @@ const SPREADS = {
   thread: {
     id: 'thread',
     title: 'Thread',
-    label: 'Thread · past · present · becoming',
+    label: 'Thread · past / now / next',
     count: 3,
-    positions: ['Past', 'Present', 'Becoming']
+    positions: ['Past', 'Now', 'Next']
   },
   crossroads: {
     id: 'crossroads',
