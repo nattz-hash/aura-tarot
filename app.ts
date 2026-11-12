@@ -24,7 +24,7 @@ interface JournalRecord {
   question: string;
   note: string;
   moon: string;
-  cards: { name: string; reversed: boolean; position: string }[];
+  cards: { id?: string; name: string; reversed: boolean; position: string }[];
 }
 
 const SPREADS: Record<SpreadId, SpreadDef> = {
@@ -38,9 +38,9 @@ const SPREADS: Record<SpreadId, SpreadDef> = {
   thread: {
     id: 'thread',
     title: 'Thread',
-    label: 'Thread · past · present · becoming',
+    label: 'Thread · past / now / next',
     count: 3,
-    positions: ['Past', 'Present', 'Becoming']
+    positions: ['Past', 'Now', 'Next']
   },
   crossroads: {
     id: 'crossroads',

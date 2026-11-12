@@ -1663,8 +1663,15 @@ class LuneApp {
     this.lastFocus = null;
     this.sheetMode = null;
     this.sheetList = [];
+    this.sheetFacing = null;
     this.sheetIndex = 0;
     this.sheetGesture = null;
+    this.navToken = 0;
+    this.keeping = false;
+    this.clearArmed = false;
+    this.clearArmedAt = 0;
+    this.pendingDelete = null;
+    this.orbCaptured = false;
 
     this.cacheDom();
     this.loadJournal();
@@ -1747,6 +1754,15 @@ class LuneApp {
       if (!chip) return;
       this.setLibraryFilter(chip.dataset.filter);
     });
+    document.getElementById('sheet-keywords').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-keyword]');
+      if (!chip) return;
+      this.libraryFilter = 'all';
+      try { localStorage.setItem(LIBRARY_FILTER_KEY, 'all'); } catch (err) { /* keep the in-memory filter */ }
+      this.libraryQuery = chip.getAttribute('data-keyword') || '';
+      this.closeCardSheet(false);
+      this.openLibrary();
+    });
     this.els.sheetPrev.addEventListener('click', () => this.stepLibraryCard(-1));
     this.els.sheetNext.addEventListener('click', () => this.stepLibraryCard(1));
     this.bindSheetGestures();
@@ -1771,6 +1787,22 @@ class LuneApp {
     document.getElementById('note-close').addEventListener('click', () => this.closeNoteSheet());
     document.getElementById('sheet-close').addEventListener('click', () => this.closeCardSheet());
     document.getElementById('btn-clear-journal').addEventListener('click', () => this.clearJournal());
+    document.getElementById('btn-clear-cancel').addEventListener('click', () => this.disarmClear());
+    this.els.journalList.addEventListener('click', (e) => {
+      const cancel = e.target.closest('[data-journal-cancel]');
+      if (cancel) {
+        this.pendingDelete = null;
+        this.renderJournal();
+        return;
+      }
+      const del = e.target.closest('[data-journal-delete]');
+      if (del) {
+        this.deleteJournal(del.getAttribute('data-journal-delete'));
+        return;
+      }
+      const open = e.target.closest('[data-journal-open]');
+      if (open) this.openJournalEntry(open.getAttribute('data-journal-open'));
+    });
 
     document.querySelectorAll('.btn-back').forEach((btn) => {
       btn.addEventListener('click', () => this.showScreen(btn.dataset.back));
@@ -1779,20 +1811,66 @@ class LuneApp {
     document.querySelectorAll('.spread-option').forEach((btn) => {
       btn.addEventListener('click', () => this.selectSpread(btn.dataset.spread));
     });
+    const spreadChooser = document.querySelector('.spread-chooser');
+    if (spreadChooser) {
+      spreadChooser.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowDown' && e.key !== 'ArrowLeft' && e.key !== 'ArrowUp') return;
+        const options = Array.from(spreadChooser.querySelectorAll('.spread-option'));
+        const index = options.indexOf(document.activeElement);
+        if (index < 0) return;
+        e.preventDefault();
+        const dir = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : -1;
+        const next = options[(index + dir + options.length) % options.length];
+        next.focus();
+        this.selectSpread(next.dataset.spread);
+      });
+    }
 
     const orb = this.els.shuffleOrb;
-    const start = (e) => {
+    orb.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
       e.preventDefault();
+      this.orbCaptured = false;
+      try {
+        orb.setPointerCapture(e.pointerId);
+        this.orbCaptured = orb.hasPointerCapture(e.pointerId);
+      } catch (err) { /* pointer already gone */ }
       this.startHold();
-    };
-    const end = (e) => {
+    });
+    orb.addEventListener('pointerup', (e) => {
       e.preventDefault();
       this.endHold();
-    };
-    orb.addEventListener('pointerdown', start);
-    orb.addEventListener('pointerup', end);
-    orb.addEventListener('pointerleave', end);
-    orb.addEventListener('pointercancel', end);
+    });
+    orb.addEventListener('pointercancel', () => this.endHold());
+    orb.addEventListener('pointerleave', () => {
+      if (this.orbCaptured) return;
+      this.endHold();
+    });
+    orb.addEventListener('keydown', (e) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      if (e.repeat) return;
+      e.preventDefault();
+      this.startHold();
+    });
+    orb.addEventListener('keyup', (e) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      e.preventDefault();
+      this.endHold();
+    });
+    this.els.librarySearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.libraryQuery) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.clearLibrarySearch(true);
+      }
+    });
+    this.els.noteInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        this.saveNoteFromSheet();
+      }
+    });
+    this.bindNoteDismiss();
 
     this.els.cardSheet.addEventListener('click', (e) => {
       if (e.target === this.els.cardSheet) this.closeCardSheet();
@@ -1807,7 +1885,7 @@ class LuneApp {
         this.closeNoteSheet();
         return;
       }
-      if (this.sheetMode === 'library' && !this.els.cardSheet.hasAttribute('hidden')) {
+      if ((this.sheetMode === 'library' || this.sheetMode === 'journal') && !this.els.cardSheet.hasAttribute('hidden')) {
         if (e.key === 'ArrowRight') {
           e.preventDefault();
           this.stepLibraryCard(1);
@@ -1824,6 +1902,12 @@ class LuneApp {
   }
 
   showScreen(name) {
+    this.navToken += 1;
+    if (name !== 'shuffle') this.endHold();
+    this.disarmClear();
+    this.pendingDelete = null;
+    if (!this.els.cardSheet.hasAttribute('hidden')) this.closeCardSheet(false);
+    if (!this.els.noteSheet.hasAttribute('hidden')) this.closeNoteSheet();
     Object.keys(this.screens).forEach((key) => {
       const el = this.screens[key];
       const active = key === name;
@@ -1840,13 +1924,44 @@ class LuneApp {
       else btn.removeAttribute('aria-current');
     });
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    const short = window.innerHeight < 320;
+    window.scrollTo({ top: 0, behavior: (reduce || short) ? 'auto' : 'smooth' });
+    const target = this.screenTarget(name);
+    if (target) requestAnimationFrame(() => this.ensureVisible(target));
+  }
+
+  screenTarget(name) {
+    if (name === 'home') return document.getElementById('btn-begin');
+    if (name === 'intention') return document.getElementById('btn-to-shuffle');
+    if (name === 'shuffle') return this.els.shuffleOrb;
+    if (name === 'draw') return this.els.cardFan.querySelector('.fan-card') || this.els.cardFan;
+    if (name === 'reveal') return document.getElementById('btn-finish');
+    if (name === 'library') return this.els.librarySearch;
+    if (name === 'journal') return this.els.journalList;
+    return null;
+  }
+
+  ensureVisible(el) {
+    if (!el || !el.getBoundingClientRect) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+    const nav = document.body.classList.contains('has-nav')
+      ? Math.min(88, Math.round(window.innerHeight * 0.45))
+      : 0;
+    const bottomLimit = window.innerHeight - nav - 4;
+    const fullyIn = rect.top >= 4 && rect.bottom <= bottomLimit;
+    if (fullyIn) return;
+    const short = window.innerHeight < 320;
+    const offscreen = rect.bottom < 4 || rect.top > bottomLimit;
+    if (!short && !offscreen) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: short ? 'start' : 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   }
 
   bindRipples() {
     document.addEventListener('pointerdown', (e) => {
       const host = e.target.closest('[data-ripple]');
-      if (!host || e.button > 0) return;
+      if (!host || e.button > 0 || host.disabled || host.getAttribute('aria-disabled') === 'true') return;
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const rect = host.getBoundingClientRect();
       const ripple = document.createElement('span');
@@ -1915,12 +2030,17 @@ class LuneApp {
   completeShuffle() {
     this.holding = false;
     if (this.holdRaf) cancelAnimationFrame(this.holdRaf);
+    if (!this.screens.shuffle.classList.contains('is-active')) return;
     this.els.shuffleOrb.classList.remove('is-holding');
     this.els.shuffleOrb.classList.add('is-ready');
     this.els.shufflePrompt.textContent = 'The deck is still.';
     this.els.shuffleHint.textContent = 'Opening the fan…';
     this.prepareFan();
-    setTimeout(() => this.showScreen('draw'), 550);
+    const token = this.navToken;
+    setTimeout(() => {
+      if (token !== this.navToken) return;
+      this.showScreen('draw');
+    }, 550);
   }
 
   prepareFan() {
@@ -1957,6 +2077,7 @@ class LuneApp {
       btn.className = 'fan-card';
       btn.setAttribute('role', 'listitem');
       btn.setAttribute('aria-label', 'Face-down card ' + (i + 1));
+      btn.setAttribute('data-ripple', '');
       btn.style.setProperty('--angle', angle + 'deg');
       btn.style.setProperty('--x', ((t - 0.5) * 28).toFixed(1) + 'px');
       btn.style.zIndex = String(i + 1);
@@ -1994,7 +2115,11 @@ class LuneApp {
 
     if (this.picked.length >= spread.count) {
       const self = this;
-      setTimeout(function () { self.openReveal(); }, 420);
+      const token = this.navToken;
+      setTimeout(function () {
+        if (token !== self.navToken) return;
+        self.openReveal();
+      }, 420);
     }
   }
 
@@ -2011,6 +2136,7 @@ class LuneApp {
   openReveal() {
     const spread = SPREADS[this.spreadId];
     this.note = '';
+    this.syncNoteButton();
     this.els.readingQuestion.textContent = this.question
       ? '“' + this.question + '”'
       : 'An open reading';
@@ -2030,7 +2156,7 @@ class LuneApp {
       el.style.animationDelay = index * 0.18 + 's';
       el.innerHTML =
         '<div class="revealed-position">' + escapeHtml(item.positionName) + '</div>' +
-        '<button type="button" class="tarot-card ' + (item.isReversed ? 'is-reversed' : '') + '" data-idx="' + index + '" aria-label="Reveal ' + escapeHtml(displayName(item.card.name)) + '">' +
+        '<button type="button" class="tarot-card ' + (item.isReversed ? 'is-reversed' : '') + '" data-ripple data-idx="' + index + '" aria-label="Reveal ' + escapeHtml(displayName(item.card.name)) + '">' +
           '<div class="tarot-card-inner">' +
             '<div class="card-side card-back-side">' +
               '<svg width="48" height="48" viewBox="0 0 64 64" fill="none" aria-hidden="true">' +
@@ -2047,7 +2173,7 @@ class LuneApp {
           '<h3>' + escapeHtml(displayName(item.card.name)) + '</h3>' +
           '<p class="revealed-orient' + (item.isReversed ? ' is-reversed' : '') + '">' + (item.isReversed ? 'Reversed' : 'Upright') + '</p>' +
           '<p>' + escapeHtml(meaning) + '</p>' +
-          '<button type="button" class="btn-details" data-idx="' + index + '">Full reading</button>' +
+          '<button type="button" class="btn-text btn-details" data-ripple data-idx="' + index + '">Full reading</button>' +
         '</div>';
       wrap.appendChild(el);
 
@@ -2074,20 +2200,55 @@ class LuneApp {
     let index = list.findIndex(function (item) { return item.id === card.id; });
     if (index < 0) index = 0;
     this.sheetList = list;
+    this.sheetFacing = null;
     this.sheetIndex = index;
     this.showCardSheet(list[index] || card, { mode: 'library' });
   }
 
+  openJournalEntry(id) {
+    const rec = this.history.find(function (item) { return item.id === id; });
+    if (!rec) return;
+    const list = [];
+    const facing = [];
+    (rec.cards || []).forEach(function (drawn) {
+      const card = TAROT_CARDS.find(function (item) { return item.id === drawn.id; })
+        || TAROT_CARDS.find(function (item) { return normCardName(item.name) === normCardName(drawn.name); });
+      if (!card) return;
+      list.push(card);
+      facing.push({ isReversed: !!drawn.reversed, position: drawn.position || '' });
+    });
+    if (!list.length) return;
+    this.disarmClear();
+    if (this.pendingDelete) {
+      this.pendingDelete = null;
+      this.renderJournal();
+    }
+    this.sheetList = list;
+    this.sheetFacing = facing;
+    this.sheetIndex = 0;
+    this.showCardSheet(list[0], {
+      mode: 'journal',
+      isReversed: facing[0].isReversed,
+      position: facing[0].position
+    });
+  }
+
   stepLibraryCard(delta) {
-    if (this.sheetMode !== 'library' || !this.sheetList.length) return;
+    if ((this.sheetMode !== 'library' && this.sheetMode !== 'journal') || !this.sheetList.length) return;
     const next = this.sheetIndex + delta;
     if (next < 0 || next >= this.sheetList.length) return;
     const focused = document.activeElement;
     this.sheetIndex = next;
-    this.showCardSheet(this.sheetList[next], {
-      mode: 'library',
+    const face = this.sheetFacing && this.sheetFacing[next];
+    const opts = {
+      mode: this.sheetMode,
       slide: delta > 0 ? 'next' : 'prev'
-    });
+    };
+    if (face) {
+      opts.isReversed = face.isReversed;
+      opts.position = face.position;
+    }
+    this.showCardSheet(this.sheetList[next], opts);
     if (focused === this.els.sheetNext && this.els.sheetNext.disabled) this.els.sheetPrev.focus();
     if (focused === this.els.sheetPrev && this.els.sheetPrev.disabled) this.els.sheetNext.focus();
   }
@@ -2106,7 +2267,9 @@ class LuneApp {
       ? suitLabel + card.element + ' · ' + arcanaLabel
       : (reversed ? 'Reversed' : 'Upright') + ' · ' + card.element + ' · ' + card.arcana + ' arcana';
     document.getElementById('sheet-keywords').innerHTML = card.keywords
-      .map(function (k) { return '<span>' + escapeHtml(k) + '</span>'; })
+      .map(function (k) {
+        return '<button type="button" class="keyword-chip" data-ripple data-keyword="' + escapeHtml(k) + '">' + escapeHtml(k) + '</button>';
+      })
       .join('');
     const meaningEl = document.getElementById('sheet-meaning');
     if (opts.mode === 'library') {
@@ -2121,7 +2284,7 @@ class LuneApp {
     this.sheetMode = opts.mode || 'reading';
     this.updateSheetNav();
     const panel = this.els.sheetPanel;
-    if (opts.mode === 'library') panel.setAttribute('aria-describedby', 'sheet-gesture-help');
+    if (opts.mode === 'library' || opts.mode === 'journal') panel.setAttribute('aria-describedby', 'sheet-gesture-help');
     else panel.removeAttribute('aria-describedby');
     if (opts.slide && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const body = this.els.sheetBody;
@@ -2131,19 +2294,27 @@ class LuneApp {
     }
     if (wasOpen) {
       this.els.sheetBody.scrollTop = 0;
+      this.setSheetLock();
       return;
     }
     panel.style.transform = '';
     this.lastFocus = document.activeElement;
     this.els.cardSheet.removeAttribute('hidden');
+    this.setSheetLock();
     const closeBtn = document.getElementById('sheet-close');
     if (closeBtn) closeBtn.focus();
   }
 
+  setSheetLock() {
+    const cardOpen = !this.els.cardSheet.hasAttribute('hidden');
+    const noteOpen = !this.els.noteSheet.hasAttribute('hidden');
+    document.body.classList.toggle('is-sheet-open', cardOpen || noteOpen);
+  }
+
   updateSheetNav() {
-    const library = this.sheetMode === 'library';
-    this.els.sheetNav.hidden = !library;
-    if (!library) return;
+    const paged = this.sheetMode === 'library' || (this.sheetMode === 'journal' && this.sheetList.length > 1);
+    this.els.sheetNav.hidden = !paged;
+    if (!paged) return;
     const total = this.sheetList.length || 1;
     const index = Math.min(this.sheetIndex, total - 1);
     const card = this.sheetList[index];
@@ -2152,13 +2323,14 @@ class LuneApp {
     this.els.sheetNext.disabled = index >= total - 1;
   }
 
-  closeCardSheet() {
+  closeCardSheet(restore) {
     if (this.els.cardSheet.hasAttribute('hidden')) return;
     this.els.cardSheet.setAttribute('hidden', '');
     this.els.sheetPanel.style.transform = '';
     this.els.sheetPanel.classList.remove('is-dragging');
     this.sheetMode = null;
-    if (this.lastFocus && typeof this.lastFocus.focus === 'function') {
+    this.setSheetLock();
+    if (restore !== false && this.lastFocus && typeof this.lastFocus.focus === 'function') {
       this.lastFocus.focus();
     }
   }
@@ -2211,7 +2383,7 @@ class LuneApp {
       }
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       const dismiss = state.mode === 'y' && state.dy > 0 && (state.fromGrab || self.els.sheetBody.scrollTop <= 1);
-      const swipe = state.mode === 'x' && self.sheetMode === 'library';
+      const swipe = state.mode === 'x' && (self.sheetMode === 'library' || self.sheetMode === 'journal');
       if (!dismiss && !swipe) return;
       sheet.classList.add('is-dragging');
       if (dismiss) {
@@ -2239,7 +2411,7 @@ class LuneApp {
         self.closeCardSheet();
         return;
       }
-      if (mode === 'x' && self.sheetMode === 'library' && Math.abs(dx) > 64) {
+      if (mode === 'x' && (self.sheetMode === 'library' || self.sheetMode === 'journal') && Math.abs(dx) > 64) {
         reset();
         self.stepLibraryCard(dx < 0 ? 1 : -1);
         return;
@@ -2258,7 +2430,7 @@ class LuneApp {
       move(t.clientX, t.clientY);
       const scroller = self.els.sheetBody;
       const dismiss = state.mode === 'y' && state.dy > 0 && (state.fromGrab || scroller.scrollTop <= 1);
-      const swipe = state.mode === 'x' && self.sheetMode === 'library';
+      const swipe = state.mode === 'x' && (self.sheetMode === 'library' || self.sheetMode === 'journal');
       if (dismiss || swipe) e.preventDefault();
     }, { passive: false });
     sheet.addEventListener('touchend', function () {
@@ -2287,22 +2459,132 @@ class LuneApp {
     });
   }
 
+  bindNoteDismiss() {
+    const sheet = document.getElementById('note-sheet-panel');
+    const overlay = this.els.noteSheet;
+    const scroller = document.getElementById('note-sheet-body');
+    if (!sheet || !overlay || !scroller) return;
+    const self = this;
+    const state = {
+      active: false,
+      pointerId: null,
+      startY: 0,
+      startT: 0,
+      dy: 0,
+      fromGrab: false,
+      pointerType: 'mouse'
+    };
+    const reset = function () {
+      sheet.style.transform = '';
+      overlay.style.background = '';
+      sheet.classList.remove('is-dragging');
+    };
+    const begin = function (y, target, pointerType, pointerId) {
+      if (target.closest('button, a, input, textarea')) return;
+      state.active = true;
+      state.pointerId = pointerId;
+      state.startY = y;
+      state.startT = performance.now();
+      state.dy = 0;
+      state.fromGrab = !!target.closest('#note-grab');
+      state.pointerType = pointerType || 'mouse';
+    };
+    const move = function (y) {
+      if (!state.active) return;
+      state.dy = y - state.startY;
+      const dismiss = state.dy > 0 && (state.fromGrab || scroller.scrollTop <= 1);
+      if (!dismiss || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      sheet.classList.add('is-dragging');
+      sheet.style.transform = 'translateY(' + state.dy + 'px)';
+      const fade = Math.max(0.2, 0.72 - state.dy / 520);
+      overlay.style.background = 'rgba(8, 14, 12, ' + fade.toFixed(3) + ')';
+    };
+    const finish = function () {
+      if (!state.active) return;
+      const dy = state.dy;
+      const dt = Math.max(1, performance.now() - state.startT);
+      const dismiss = dy > 0 && (state.fromGrab || scroller.scrollTop <= 1);
+      state.active = false;
+      if (dismiss && (dy > 108 || dy / dt > 0.65)) {
+        reset();
+        self.closeNoteSheet();
+        return;
+      }
+      reset();
+    };
+    sheet.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      begin(e.touches[0].clientY, e.target, 'touch', null);
+    }, { passive: true });
+    sheet.addEventListener('touchmove', function (e) {
+      if (!state.active || state.pointerType !== 'touch' || e.touches.length !== 1) return;
+      move(e.touches[0].clientY);
+      if (state.dy > 12 && (state.fromGrab || scroller.scrollTop <= 1)) e.preventDefault();
+    }, { passive: false });
+    sheet.addEventListener('touchend', function () {
+      if (state.pointerType === 'touch') finish();
+    });
+    sheet.addEventListener('touchcancel', function () {
+      if (state.pointerType === 'touch') finish();
+    });
+    sheet.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'touch' || e.button !== 0) return;
+      begin(e.clientY, e.target, e.pointerType, e.pointerId);
+      if (state.active) {
+        try { sheet.setPointerCapture(e.pointerId); } catch (err) { /* already released */ }
+      }
+    });
+    sheet.addEventListener('pointermove', function (e) {
+      if (!state.active || state.pointerType === 'touch' || e.pointerId !== state.pointerId) return;
+      move(e.clientY);
+    });
+    sheet.addEventListener('pointerup', function (e) {
+      if (state.pointerType === 'touch' || e.pointerId !== state.pointerId) return;
+      finish();
+    });
+    sheet.addEventListener('pointercancel', function (e) {
+      if (state.pointerType === 'touch' || e.pointerId !== state.pointerId) return;
+      finish();
+    });
+  }
+
   openNoteSheet() {
     this.els.noteInput.value = this.note;
     this.els.noteSheet.removeAttribute('hidden');
+    this.setSheetLock();
     this.els.noteInput.focus();
   }
 
   closeNoteSheet() {
-    this.els.noteSheet.setAttribute('hidden', '');
+    const panel = document.getElementById('note-sheet-panel');
+    if (panel) {
+      panel.style.transform = '';
+      panel.classList.remove('is-dragging');
+    }
+    this.els.noteSheet.style.background = '';
+    if (!this.els.noteSheet.hasAttribute('hidden')) this.els.noteSheet.setAttribute('hidden', '');
+    this.setSheetLock();
+  }
+
+  syncNoteButton() {
+    const btn = document.getElementById('btn-save-note');
+    if (!btn) return;
+    const saved = !!this.note;
+    btn.textContent = saved ? 'Edit note' : 'Add a note';
+    btn.setAttribute('aria-label', saved ? 'Edit your note' : 'Add a note');
   }
 
   saveNoteFromSheet() {
     this.note = this.els.noteInput.value.trim();
+    this.syncNoteButton();
     this.closeNoteSheet();
+    const btn = document.getElementById('btn-save-note');
+    if (btn) btn.focus();
   }
 
   keepReading() {
+    if (this.keeping || !this.picked.length) return;
+    this.keeping = true;
     const spread = SPREADS[this.spreadId];
     const record = {
       id: 'r_' + Date.now(),
@@ -2324,9 +2606,17 @@ class LuneApp {
     };
     this.history.unshift(record);
     if (this.history.length > 30) this.history.length = 30;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.history));
+    this.persistJournal();
     this.renderJournal();
     this.showScreen('journal');
+    this.keeping = false;
+  }
+
+  persistJournal() {
+    try {
+      if (this.history.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(this.history));
+      else localStorage.removeItem(STORAGE_KEY);
+    } catch (e) { /* private mode or a full store still keeps this session */ }
   }
 
   loadJournal() {
@@ -2341,34 +2631,92 @@ class LuneApp {
 
   renderJournal() {
     const list = this.els.journalList;
+    const clearBtn = document.getElementById('btn-clear-journal');
+    if (!this.history.length) this.disarmClear();
+    if (clearBtn) clearBtn.disabled = !this.history.length;
     if (!this.history.length) {
       list.innerHTML = '<p class="journal-empty">No readings kept yet. Begin when you are ready.</p>';
       return;
     }
+    const armed = this.pendingDelete;
     list.innerHTML = this.history.map(function (rec) {
+      const cards = rec.cards || [];
+      const confirming = armed === rec.id;
       return (
         '<article class="journal-item">' +
           '<div class="journal-item-head">' +
             '<span>' + escapeHtml(rec.spread) + ' · ' + escapeHtml(rec.moon || '') + '</span>' +
             '<span>' + escapeHtml(rec.date) + '</span>' +
           '</div>' +
-          '<q>' + escapeHtml(rec.question) + '</q>' +
-          '<div class="journal-tags">' +
-            rec.cards.map(function (c) {
-              return '<span class="journal-tag">' + escapeHtml(displayName(c.name)) + (c.reversed ? ' (rev)' : '') + '</span>';
-            }).join('') +
+          '<button type="button" class="journal-open" data-ripple data-journal-open="' + escapeHtml(rec.id) + '" aria-label="View reading: ' + escapeHtml(rec.question) + '">' +
+            '<q>' + escapeHtml(rec.question) + '</q>' +
+            '<div class="journal-tags">' +
+              cards.map(function (c) {
+                return '<span class="journal-tag">' + escapeHtml(displayName(c.name)) + (c.reversed ? ' (rev)' : '') + '</span>';
+              }).join('') +
+            '</div>' +
+            (rec.note ? '<p class="journal-note">' + escapeHtml(rec.note) + '</p>' : '') +
+          '</button>' +
+          '<div class="journal-actions">' +
+            '<button type="button" class="btn-text journal-delete" data-ripple data-journal-delete="' + escapeHtml(rec.id) + '">' +
+              (confirming ? 'Confirm delete' : 'Delete') +
+            '</button>' +
+            (confirming ? '<button type="button" class="btn-text journal-cancel" data-ripple data-journal-cancel>Cancel</button>' : '') +
           '</div>' +
-          (rec.note ? '<p class="journal-note">' + escapeHtml(rec.note) + '</p>' : '') +
         '</article>'
       );
     }).join('');
   }
 
+  disarmClear() {
+    this.clearArmed = false;
+    const btn = document.getElementById('btn-clear-journal');
+    const cancel = document.getElementById('btn-clear-cancel');
+    if (btn) {
+      btn.textContent = 'Clear';
+      btn.removeAttribute('aria-label');
+    }
+    if (cancel) cancel.hidden = true;
+  }
+
   clearJournal() {
     if (!this.history.length) return;
-    if (!confirm('Clear your LUNÉ journal?')) return;
+    const btn = document.getElementById('btn-clear-journal');
+    const cancel = document.getElementById('btn-clear-cancel');
+    if (!this.clearArmed) {
+      this.clearArmed = true;
+      this.clearArmedAt = performance.now();
+      if (btn) {
+        btn.textContent = 'Confirm clear';
+        btn.setAttribute('aria-label', 'Confirm clearing the journal');
+      }
+      if (cancel) cancel.hidden = false;
+      return;
+    }
+    if (performance.now() - this.clearArmedAt < 400) return;
     this.history = [];
-    localStorage.removeItem(STORAGE_KEY);
+    this.pendingDelete = null;
+    this.persistJournal();
+    this.disarmClear();
+    this.renderJournal();
+  }
+
+  deleteJournal(id) {
+    if (!this.history.some(function (rec) { return rec.id === id; })) return;
+    this.disarmClear();
+    if (this.pendingDelete !== id) {
+      this.pendingDelete = id;
+      this.deleteArmedAt = performance.now();
+      this.renderJournal();
+      const btn = this.els.journalList.querySelector('[data-journal-delete="' + id + '"]');
+      if (btn) btn.focus();
+      return;
+    }
+    if (performance.now() - this.deleteArmedAt < 400) return;
+    this.pendingDelete = null;
+    this.history = this.history.filter(function (rec) { return rec.id !== id; });
+    this.persistJournal();
+    if (this.sheetMode === 'journal') this.closeCardSheet(false);
     this.renderJournal();
   }
 

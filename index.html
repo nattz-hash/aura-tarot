@@ -84,7 +84,7 @@
           </span>
           <span class="orb-progress" id="orb-progress"></span>
         </button>
-        <p class="shuffle-hint" id="shuffle-hint">Hold for a full breath</p>
+        <p class="shuffle-hint" id="shuffle-hint" aria-live="polite">Hold for a full breath</p>
       </div>
     </section>
 
@@ -101,7 +101,7 @@
         <h2 class="panel-title" id="draw-title">Which card calls to you?</h2>
         <p class="panel-copy" id="draw-copy">Tap a face-down card. Trust the pull.</p>
         <div class="card-fan" id="card-fan" role="list"></div>
-        <p class="draw-count" id="draw-count"></p>
+        <p class="draw-count" id="draw-count" aria-live="polite"></p>
       </div>
     </section>
 
@@ -158,6 +158,7 @@
     <section class="screen" id="screen-journal" data-screen="journal" hidden>
       <header class="app-bar">
         <h1 class="app-bar-title">Journal</h1>
+        <button type="button" class="btn-text" id="btn-clear-cancel" data-ripple hidden>Cancel</button>
         <button type="button" class="btn-text" id="btn-clear-journal" data-ripple>Clear</button>
       </header>
       <div class="panel journal-panel">
@@ -223,13 +224,15 @@
 
   <!-- NOTE -->
   <div class="sheet-overlay" id="note-sheet" hidden>
-    <div class="sheet note-sheet" role="dialog" aria-modal="true" aria-labelledby="note-title">
-      <div class="sheet-grab" aria-hidden="true"><span></span></div>
+    <div class="sheet note-sheet" id="note-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="note-title">
+      <div class="sheet-grab" id="note-grab" aria-hidden="true"><span></span></div>
       <button type="button" class="icon-btn sheet-close" id="note-close" data-ripple aria-label="Close">&times;</button>
-      <h2 class="sheet-title" id="note-title">A note to yourself</h2>
-      <p class="panel-copy">What did this reading stir?</p>
-      <textarea id="note-input" class="text-field" rows="4" maxlength="400" placeholder="Something I want to remember…"></textarea>
-      <button type="button" class="btn-filled" id="btn-save-note-confirm" data-ripple>Save note</button>
+      <div class="note-sheet-body" id="note-sheet-body">
+        <h2 class="sheet-title" id="note-title">A note to yourself</h2>
+        <p class="panel-copy">What did this reading stir?</p>
+        <textarea id="note-input" class="text-field" rows="4" maxlength="400" placeholder="Something I want to remember…"></textarea>
+        <button type="button" class="btn-filled" id="btn-save-note-confirm" data-ripple>Save note</button>
+      </div>
     </div>
   </div>
 
