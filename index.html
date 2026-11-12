@@ -24,6 +24,7 @@
     <!-- HOME -->
     <section class="screen screen-home is-active" id="screen-home" data-screen="home">
       <header class="top-bar">
+        <button type="button" class="ghost-link js-open-library" aria-label="Open the card library">Library</button>
         <button type="button" class="ghost-link" id="btn-open-journal" aria-label="Open journal">Journal</button>
       </header>
       <div class="hero">
@@ -33,6 +34,7 @@
         <p class="hero-sub">Breathe. Ask. Unveil.</p>
         <div class="hero-cta">
           <button type="button" class="btn-primary" id="btn-begin">Begin a reading</button>
+          <button type="button" class="text-link js-open-library">Browse the library</button>
         </div>
       </div>
       <div class="hero-ground" aria-hidden="true">
@@ -123,6 +125,31 @@
       </div>
     </section>
 
+    <!-- LIBRARY -->
+    <section class="screen screen-library" id="screen-library" data-screen="library" hidden>
+      <div class="library-sticky">
+        <header class="top-bar">
+          <button type="button" class="ghost-link btn-back" data-back="home">Back</button>
+          <h2 class="library-heading">Library</h2>
+          <span class="step-mark" id="library-count">78 cards</span>
+        </header>
+        <label class="sr-only" for="library-search">Search by name or keyword</label>
+        <input id="library-search" class="library-search" type="search" placeholder="Name or keyword" autocomplete="off" enterkeyhint="search">
+        <div class="library-filters" id="library-filters" role="group" aria-label="Filter the deck">
+          <button type="button" class="filter-chip is-selected" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" class="filter-chip" data-filter="major" aria-pressed="false">Major</button>
+          <button type="button" class="filter-chip" data-filter="wands" aria-pressed="false">Wands</button>
+          <button type="button" class="filter-chip" data-filter="cups" aria-pressed="false">Cups</button>
+          <button type="button" class="filter-chip" data-filter="swords" aria-pressed="false">Swords</button>
+          <button type="button" class="filter-chip" data-filter="pentacles" aria-pressed="false">Pentacles</button>
+        </div>
+      </div>
+      <p class="panel-copy library-lead">The whole deck, when you want to look rather than ask.</p>
+      <div id="library-grid" class="library-grid"></div>
+      <p id="library-empty" class="library-empty" hidden>Nothing in the deck answers that.</p>
+      <p class="library-credit">Pamela Colman Smith · Rider–Waite–Smith · 1909</p>
+    </section>
+
     <!-- JOURNAL -->
     <section class="screen" id="screen-journal" data-screen="journal" hidden>
       <header class="top-bar">
@@ -148,7 +175,7 @@
       <div class="sheet-keywords" id="sheet-keywords"></div>
       <div class="sheet-block">
         <h3>Meaning</h3>
-        <p id="sheet-meaning"></p>
+        <div class="sheet-meaning" id="sheet-meaning"></div>
       </div>
       <div class="sheet-block">
         <h3>Image</h3>

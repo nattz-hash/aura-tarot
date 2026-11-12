@@ -242,8 +242,33 @@ button {
 
 .hero-cta {
   margin-top: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
   opacity: 0;
   animation: rise 1s 0.7s var(--ease-out) forwards;
+}
+
+.text-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: var(--moon);
+}
+
+.text-link:hover,
+.text-link:focus-visible {
+  color: var(--bone);
+}
+
+.top-bar .ghost-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .hero-ground {
@@ -645,8 +670,8 @@ button {
 }
 
 .tarot-card {
-  width: 160px;
-  height: 250px;
+  width: 154px;
+  height: 266px;
   perspective: 1000px;
   cursor: pointer;
   border: none;
@@ -666,7 +691,20 @@ button {
   transform: rotateY(180deg);
 }
 
-.tarot-card.is-reversed .card-art {
+.card-front-photo {
+  padding: 0;
+  background: #f3efe6;
+}
+
+.card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #f3efe6;
+}
+
+.card-photo.is-reversed {
   transform: rotate(180deg);
 }
 
@@ -701,6 +739,11 @@ button {
   color: var(--bone);
 }
 
+.card-front-side.card-front-photo {
+  padding: 0;
+  background: #f3efe6;
+}
+
 .card-front-side .card-name {
   font-family: var(--font-display);
   font-size: 0.95rem;
@@ -731,6 +774,18 @@ button {
   font-family: var(--font-display);
   font-size: 1.1rem;
   font-weight: 600;
+}
+
+.revealed-orient {
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+
+.revealed-orient.is-reversed {
+  color: var(--moon);
 }
 
 .revealed-summary p {
@@ -880,12 +935,39 @@ button {
 }
 
 .sheet-art {
-  width: 72px;
-  height: 72px;
-  margin: 0.25rem auto 0.75rem;
+  width: auto;
+  height: auto;
+  margin: 0.15rem auto 0.85rem;
   color: var(--moon);
-  display: grid;
-  place-items: center;
+  display: block;
+}
+
+.sheet-art .sheet-card {
+  display: block;
+  width: min(220px, 58vw);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 201, 154, 0.28);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  background: #f3efe6;
+}
+
+.sheet-art .sheet-card.is-reversed {
+  transform: rotate(180deg);
+}
+
+.meaning-label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--moon-deep);
+  margin-bottom: 0.2rem;
+}
+
+.sheet-meaning p + p {
+  margin-top: 0.75rem;
 }
 
 .sheet-position {
@@ -959,6 +1041,161 @@ button {
   }
 }
 
+/* ——— Library ——— */
+.screen-library {
+  gap: 0.35rem;
+}
+
+.library-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 0 -0.15rem 0.35rem;
+  padding: 0.35rem 0.15rem 0.75rem;
+  background: rgba(15, 26, 22, 0.92);
+  backdrop-filter: blur(14px);
+}
+
+.library-sticky .top-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.library-heading {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.library-lead {
+  margin: 0.35rem 0 0.85rem;
+}
+
+.library-search {
+  width: 100%;
+  min-height: 3rem;
+  font-size: 1rem;
+  padding: 0.75rem 0.9rem;
+  background: rgba(26, 44, 37, 0.72);
+  border: 1px solid rgba(183, 201, 181, 0.22);
+  border-radius: var(--radius);
+  color: var(--bone);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.library-search::placeholder {
+  color: rgba(183, 201, 181, 0.5);
+}
+
+.library-search:focus {
+  border-color: var(--moon-deep);
+  box-shadow: 0 0 0 3px rgba(226, 201, 154, 0.12);
+}
+
+.library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filter-chip {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(183, 201, 181, 0.24);
+  border-radius: 999px;
+  color: var(--lichen);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  background: rgba(15, 26, 22, 0.35);
+}
+
+.filter-chip.is-selected {
+  background: var(--moon);
+  border-color: var(--moon);
+  color: var(--ink);
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.95rem 0.7rem;
+  width: 100%;
+}
+
+.lib-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  text-align: left;
+  color: var(--bone);
+}
+
+.lib-card:focus-visible .lib-card-frame {
+  outline: 2px solid var(--moon);
+  outline-offset: 3px;
+}
+
+.lib-card-frame {
+  position: relative;
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 201, 154, 0.28);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  background: #f3efe6;
+}
+
+.lib-card-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.lib-kept {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--moon);
+  padding: 0.18rem 0.4rem;
+  border-radius: 999px;
+}
+
+.lib-card-name {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  line-height: 1.25;
+  min-height: 2.5em;
+}
+
+.library-empty {
+  color: var(--moss);
+  font-style: italic;
+  font-family: var(--font-display);
+  margin-top: 0.5rem;
+}
+
+.library-credit {
+  margin-top: 1.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+
 /* ——— Responsive ——— */
 @media (min-width: 720px) {
   .screen {
@@ -979,6 +1216,17 @@ button {
     width: 120px;
     height: 186px;
     margin-left: -60px;
+  }
+
+  .library-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.15rem 0.9rem;
+  }
+
+  .screen-library {
+    max-width: 960px;
+    margin: 0 auto;
+    width: 100%;
   }
 
   .sheet-overlay {
