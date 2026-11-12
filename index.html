@@ -9,74 +9,70 @@
   <link rel="apple-touch-icon" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="has-nav">
   <div class="sky" aria-hidden="true">
-    <div class="sky-wash"></div>
-    <div class="sky-aurora"></div>
     <canvas id="starfield" class="starfield"></canvas>
-    <div class="horizon"></div>
   </div>
 
   <div class="app" id="app">
     <!-- HOME -->
     <section class="screen screen-home is-active" id="screen-home" data-screen="home">
-      <header class="top-bar">
-        <button type="button" class="ghost-link" id="btn-open-journal" aria-label="Open journal">Journal</button>
+      <header class="app-bar">
+        <h1 class="app-bar-title">LUNÉ</h1>
       </header>
       <div class="hero">
-        <p class="moon-phase" id="moon-phase"></p>
-        <h1 class="brand">LUNÉ</h1>
+        <p class="moon-phase label-medium" id="moon-phase"></p>
         <p class="hero-line">A ritual for what words cannot name.</p>
         <p class="hero-sub">Breathe. Ask. Unveil.</p>
         <div class="hero-cta">
-          <button type="button" class="btn-primary" id="btn-begin">Begin a reading</button>
+          <button type="button" class="btn-filled" id="btn-begin" data-ripple>Begin a reading</button>
         </div>
-      </div>
-      <div class="hero-ground" aria-hidden="true">
-        <svg class="moon-mark" viewBox="0 0 120 120" fill="none">
-          <circle cx="60" cy="60" r="42" stroke="currentColor" stroke-width="1.2" opacity="0.55"/>
-          <path d="M72 28a38 38 0 1 0 0 64 30 30 0 0 1 0-64z" fill="currentColor" opacity="0.22"/>
-        </svg>
       </div>
     </section>
 
     <!-- INTENTION -->
     <section class="screen" id="screen-intention" data-screen="intention" hidden>
-      <header class="top-bar">
-        <button type="button" class="ghost-link btn-back" data-back="home">Back</button>
-        <span class="step-mark">I · Name</span>
+      <header class="app-bar">
+        <button type="button" class="icon-btn btn-back" data-back="home" data-ripple aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+        </button>
+        <h1 class="app-bar-title">Name</h1>
+        <span class="app-bar-meta">1 of 3</span>
       </header>
       <div class="panel">
         <h2 class="panel-title">What are you carrying?</h2>
         <p class="panel-copy">Write a question, or leave it open and let the cards speak first.</p>
-        <label class="sr-only" for="question-input">Your intention</label>
-        <textarea id="question-input" class="intention-field" rows="3" maxlength="180" placeholder="What feels ready?"></textarea>
+        <label class="field-label" for="question-input">Your intention</label>
+        <textarea id="question-input" class="text-field" rows="3" maxlength="180" placeholder="What feels ready?"></textarea>
         <div class="spread-chooser" role="radiogroup" aria-label="Choose a spread">
-          <button type="button" class="spread-option is-selected" data-spread="ember" role="radio" aria-checked="true">
+          <button type="button" class="spread-option is-selected" data-spread="ember" data-ripple role="radio" aria-checked="true">
             <span class="spread-name">Ember</span>
             <span class="spread-desc">One card · a clear signal</span>
           </button>
-          <button type="button" class="spread-option" data-spread="thread" role="radio" aria-checked="false">
+          <button type="button" class="spread-option" data-spread="thread" data-ripple role="radio" aria-checked="false">
             <span class="spread-name">Thread</span>
             <span class="spread-desc">Three · past / now / next</span>
           </button>
-          <button type="button" class="spread-option" data-spread="crossroads" role="radio" aria-checked="false">
+          <button type="button" class="spread-option" data-spread="crossroads" data-ripple role="radio" aria-checked="false">
             <span class="spread-name">Crossroads</span>
             <span class="spread-desc">Three · situation · challenge · counsel</span>
           </button>
         </div>
-        <button type="button" class="btn-primary" id="btn-to-shuffle">Continue</button>
+        <button type="button" class="btn-filled" id="btn-to-shuffle" data-ripple>Continue</button>
       </div>
     </section>
 
     <!-- SHUFFLE -->
     <section class="screen" id="screen-shuffle" data-screen="shuffle" hidden>
-      <header class="top-bar">
-        <button type="button" class="ghost-link btn-back" data-back="intention">Back</button>
-        <span class="step-mark">II · Still</span>
+      <header class="app-bar">
+        <button type="button" class="icon-btn btn-back" data-back="intention" data-ripple aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+        </button>
+        <h1 class="app-bar-title">Still</h1>
+        <span class="app-bar-meta">2 of 3</span>
       </header>
       <div class="shuffle-stage">
         <p class="shuffle-prompt" id="shuffle-prompt">Press and hold. Breathe with the deck.</p>
@@ -94,9 +90,12 @@
 
     <!-- DRAW -->
     <section class="screen" id="screen-draw" data-screen="draw" hidden>
-      <header class="top-bar">
-        <button type="button" class="ghost-link btn-back" data-back="shuffle">Back</button>
-        <span class="step-mark">III · Choose</span>
+      <header class="app-bar">
+        <button type="button" class="icon-btn btn-back" data-back="shuffle" data-ripple aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>
+        </button>
+        <h1 class="app-bar-title">Choose</h1>
+        <span class="app-bar-meta">3 of 3</span>
       </header>
       <div class="draw-stage">
         <h2 class="panel-title" id="draw-title">Which card calls to you?</h2>
@@ -108,67 +107,129 @@
 
     <!-- REVEAL -->
     <section class="screen" id="screen-reveal" data-screen="reveal" hidden>
-      <header class="top-bar">
-        <button type="button" class="ghost-link" id="btn-new-reading">New reading</button>
-        <span class="step-mark">Unveil</span>
+      <header class="app-bar">
+        <button type="button" class="btn-text" id="btn-new-reading" data-ripple>New reading</button>
+        <span class="app-bar-meta">Unveil</span>
       </header>
       <div class="reveal-stage">
         <p class="reading-question" id="reading-question"></p>
         <h2 class="panel-title" id="reveal-spread-title"></h2>
         <div class="reveal-cards" id="reveal-cards"></div>
         <div class="reveal-actions">
-          <button type="button" class="btn-secondary" id="btn-save-note">Add a note</button>
-          <button type="button" class="btn-primary" id="btn-finish">Keep in journal</button>
+          <button type="button" class="btn-outlined" id="btn-save-note" data-ripple>Add a note</button>
+          <button type="button" class="btn-filled" id="btn-finish" data-ripple>Keep in journal</button>
         </div>
       </div>
     </section>
 
+    <!-- LIBRARY -->
+    <section class="screen screen-library" id="screen-library" data-screen="library" hidden>
+      <div class="library-sticky">
+        <header class="app-bar">
+          <h1 class="app-bar-title" id="library-heading">Library</h1>
+          <p class="library-count" id="library-count" aria-live="polite">78 cards</p>
+        </header>
+        <div class="library-search-wrap search-bar">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg>
+          <label class="sr-only" for="library-search">Search by name or keyword</label>
+          <input id="library-search" class="library-search" type="search" placeholder="Name or keyword" autocomplete="off" enterkeyhint="search" aria-controls="library-grid library-empty">
+          <button type="button" class="icon-btn library-clear" id="library-clear" hidden aria-label="Clear search" data-ripple>&times;</button>
+        </div>
+        <div class="library-filters" id="library-filters" role="group" aria-label="Filter the deck">
+          <button type="button" class="filter-chip is-selected" data-filter="all" data-ripple aria-pressed="true">All</button>
+          <button type="button" class="filter-chip" data-filter="major" data-ripple aria-pressed="false">Major</button>
+          <button type="button" class="filter-chip" data-filter="wands" data-ripple aria-pressed="false">Wands</button>
+          <button type="button" class="filter-chip" data-filter="cups" data-ripple aria-pressed="false">Cups</button>
+          <button type="button" class="filter-chip" data-filter="swords" data-ripple aria-pressed="false">Swords</button>
+          <button type="button" class="filter-chip" data-filter="pentacles" data-ripple aria-pressed="false">Pentacles</button>
+        </div>
+      </div>
+      <p class="library-lead">Before you ask.</p>
+      <div id="library-grid" class="library-grid" role="list"></div>
+      <div id="library-empty" class="library-empty" hidden>
+        <p class="library-empty-title" id="library-empty-title">Nothing answers that.</p>
+        <p class="library-empty-copy" id="library-empty-copy">Try another word, or clear the search.</p>
+        <button type="button" class="btn-outlined" id="library-empty-clear" data-ripple>Clear search</button>
+      </div>
+      <p class="library-credit">Pamela Colman Smith · Rider–Waite–Smith · 1909</p>
+    </section>
+
     <!-- JOURNAL -->
     <section class="screen" id="screen-journal" data-screen="journal" hidden>
-      <header class="top-bar">
-        <button type="button" class="ghost-link btn-back" data-back="home">Back</button>
-        <button type="button" class="ghost-link danger" id="btn-clear-journal">Clear</button>
+      <header class="app-bar">
+        <h1 class="app-bar-title">Journal</h1>
+        <button type="button" class="btn-text" id="btn-clear-journal" data-ripple>Clear</button>
       </header>
       <div class="panel journal-panel">
-        <h2 class="panel-title">Journal</h2>
         <p class="panel-copy">Notes to self from readings you chose to keep.</p>
         <div id="journal-list" class="journal-list"></div>
       </div>
     </section>
   </div>
 
+  <nav class="nav-bar" id="nav-bar" aria-label="Primary">
+    <button type="button" class="nav-item is-active" data-nav="home" data-ripple aria-current="page">
+      <span class="nav-indicator">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      </span>
+      <span class="nav-label">Home</span>
+    </button>
+    <button type="button" class="nav-item js-open-library" data-nav="library" data-ripple>
+      <span class="nav-indicator">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z"/></svg>
+      </span>
+      <span class="nav-label">Library</span>
+    </button>
+    <button type="button" class="nav-item" id="btn-open-journal" data-nav="journal" data-ripple>
+      <span class="nav-indicator">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2M6 4h5v8l-2.5-1.5L6 12z"/></svg>
+      </span>
+      <span class="nav-label">Journal</span>
+    </button>
+  </nav>
+
   <!-- CARD DETAIL -->
   <div class="sheet-overlay" id="card-sheet" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-      <button type="button" class="sheet-close" id="sheet-close" aria-label="Close">&times;</button>
-      <div class="sheet-art" id="sheet-art"></div>
-      <p class="sheet-position" id="sheet-position"></p>
-      <h2 class="sheet-title" id="sheet-title"></h2>
-      <p class="sheet-meta" id="sheet-meta"></p>
-      <div class="sheet-keywords" id="sheet-keywords"></div>
-      <div class="sheet-block">
-        <h3>Meaning</h3>
-        <p id="sheet-meaning"></p>
+    <div class="sheet" id="card-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-grab" id="sheet-grab" aria-hidden="true"><span></span></div>
+      <button type="button" class="icon-btn sheet-close" id="sheet-close" data-ripple aria-label="Close card">&times;</button>
+      <p class="sr-only" id="sheet-gesture-help">Swipe left or right for another card. Swipe down to close.</p>
+      <div class="sheet-body" id="sheet-body">
+        <div class="sheet-art" id="sheet-art"></div>
+        <p class="sheet-position" id="sheet-position"></p>
+        <h2 class="sheet-title" id="sheet-title"></h2>
+        <p class="sheet-meta" id="sheet-meta"></p>
+        <div class="sheet-keywords" id="sheet-keywords"></div>
+        <div class="sheet-block">
+          <h3>Meaning</h3>
+          <div class="sheet-meaning" id="sheet-meaning"></div>
+        </div>
+        <div class="sheet-block">
+          <h3>Image</h3>
+          <p id="sheet-description"></p>
+        </div>
+        <div class="sheet-block">
+          <h3>Symbol</h3>
+          <p id="sheet-symbolism"></p>
+        </div>
       </div>
-      <div class="sheet-block">
-        <h3>Image</h3>
-        <p id="sheet-description"></p>
-      </div>
-      <div class="sheet-block">
-        <h3>Symbol</h3>
-        <p id="sheet-symbolism"></p>
+      <div class="sheet-nav" id="sheet-nav" hidden>
+        <button type="button" class="icon-btn sheet-step" id="sheet-prev" data-ripple aria-label="Previous card"><span aria-hidden="true">‹</span></button>
+        <p class="sheet-index" id="sheet-index" aria-live="polite"></p>
+        <button type="button" class="icon-btn sheet-step" id="sheet-next" data-ripple aria-label="Next card"><span aria-hidden="true">›</span></button>
       </div>
     </div>
   </div>
 
-  <!-- NOTE MODAL -->
+  <!-- NOTE -->
   <div class="sheet-overlay" id="note-sheet" hidden>
     <div class="sheet note-sheet" role="dialog" aria-modal="true" aria-labelledby="note-title">
-      <button type="button" class="sheet-close" id="note-close" aria-label="Close">&times;</button>
+      <div class="sheet-grab" aria-hidden="true"><span></span></div>
+      <button type="button" class="icon-btn sheet-close" id="note-close" data-ripple aria-label="Close">&times;</button>
       <h2 class="sheet-title" id="note-title">A note to yourself</h2>
       <p class="panel-copy">What did this reading stir?</p>
-      <textarea id="note-input" class="intention-field" rows="4" maxlength="400" placeholder="Something I want to remember…"></textarea>
-      <button type="button" class="btn-primary" id="btn-save-note-confirm">Save note</button>
+      <textarea id="note-input" class="text-field" rows="4" maxlength="400" placeholder="Something I want to remember…"></textarea>
+      <button type="button" class="btn-filled" id="btn-save-note-confirm" data-ripple>Save note</button>
     </div>
   </div>
 
