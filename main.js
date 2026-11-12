@@ -1723,6 +1723,12 @@ class LuneApp {
 
   bindEvents() {
     document.getElementById('btn-begin').addEventListener('click', () => this.showScreen('intention'));
+    document.querySelectorAll('.nav-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.nav === 'home') this.showScreen('home');
+      });
+    });
+    this.bindRipples();
     document.getElementById('btn-open-journal').addEventListener('click', () => {
       this.renderJournal();
       this.showScreen('journal');
@@ -1825,8 +1831,34 @@ class LuneApp {
       if (active) el.removeAttribute('hidden');
       else el.setAttribute('hidden', '');
     });
+    const topLevel = name === 'home' || name === 'library' || name === 'journal';
+    document.body.classList.toggle('has-nav', topLevel);
+    document.querySelectorAll('.nav-item').forEach((btn) => {
+      const on = topLevel && btn.dataset.nav === name;
+      btn.classList.toggle('is-active', on);
+      if (on) btn.setAttribute('aria-current', 'page');
+      else btn.removeAttribute('aria-current');
+    });
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+  }
+
+  bindRipples() {
+    document.addEventListener('pointerdown', (e) => {
+      const host = e.target.closest('[data-ripple]');
+      if (!host || e.button > 0) return;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const rect = host.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      const size = Math.max(rect.width, rect.height) * 1.2;
+      ripple.style.width = size + 'px';
+      ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      host.appendChild(ripple);
+      ripple.addEventListener('animationend', function () { ripple.remove(); });
+    });
   }
 
   selectSpread(id) {
